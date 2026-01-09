@@ -212,10 +212,28 @@ body {
 }
 
 .qty-value {
-  width: 28px;
+  width: 36px;
   text-align: center;
   font-weight: 600;
   font-size: 1.1rem;
+}
+
+.qty-clickable {
+  cursor: pointer;
+  background: var(--color-background);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px dashed var(--color-border);
+  transition: all 0.2s;
+}
+
+.qty-clickable:hover {
+  background: #fff3e6;
+  border-color: var(--color-primary);
+}
+
+.qty-clickable:active {
+  transform: scale(0.95);
 }
 
 /* Cart Summary - Fixed Bottom Bar */

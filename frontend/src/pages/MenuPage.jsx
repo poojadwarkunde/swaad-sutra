@@ -44,6 +44,25 @@ function MenuPage() {
     })
   }
 
+  const setQuantity = (itemId, qty) => {
+    const newQty = Math.max(0, parseInt(qty) || 0)
+    setCart(prev => {
+      if (newQty === 0) {
+        const { [itemId]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [itemId]: newQty }
+    })
+  }
+
+  const handleQuantityClick = (itemId) => {
+    const currentQty = cart[itemId] || 0
+    const input = prompt(`Enter quantity for this item:`, currentQty)
+    if (input !== null) {
+      setQuantity(itemId, input)
+    }
+  }
+
   const cartItems = MENU_ITEMS.filter(item => cart[item.id] > 0).map(item => ({
     ...item,
     qty: cart[item.id],
@@ -168,7 +187,13 @@ function MenuPage() {
                 >
                   −
                 </button>
-                <span className="qty-value">{cart[item.id] || 0}</span>
+                <span 
+                  className="qty-value qty-clickable"
+                  onClick={() => handleQuantityClick(item.id)}
+                  title="Tap to enter quantity"
+                >
+                  {cart[item.id] || 0}
+                </span>
                 <button 
                   className="qty-btn qty-btn-add"
                   onClick={() => updateQuantity(item.id, 1)}
