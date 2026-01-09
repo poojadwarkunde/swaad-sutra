@@ -1,0 +1,10 @@
+# Render.com deployment configuration
+services:
+  - type: web
+    name: swaad-sutra
+    env: node
+    buildCommand: cd frontend && npm install && npm run build && rm -rf ../backend/public && cp -r dist ../backend/public && cd ../backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production

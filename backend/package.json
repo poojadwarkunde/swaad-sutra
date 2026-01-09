@@ -1,0 +1,19 @@
+{
+  "name": "swaad-sutra-backend",
+  "version": "1.0.0",
+  "description": "Backend for Swaad Sutra - Society home food ordering",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'No build step required for backend'"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}
