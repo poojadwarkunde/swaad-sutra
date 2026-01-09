@@ -5,7 +5,8 @@
   "scripts": {
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "dev": "echo 'Run backend and frontend separately - see README'",
-    "build": "cd frontend && npm run build && rm -rf ../backend/public && cp -r dist ../backend/public",
-    "start": "cd backend && npm start"
+    "build": "cd frontend && npm install && npm run build && mkdir -p ../backend/public && cp -r dist/* ../backend/public/",
+    "start": "cd backend && node server.js",
+    "postinstall": "cd backend && npm install"
   }
 }

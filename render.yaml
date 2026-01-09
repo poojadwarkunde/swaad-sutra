@@ -3,8 +3,9 @@ services:
   - type: web
     name: swaad-sutra
     env: node
-    buildCommand: cd frontend && npm install && npm run build && rm -rf ../backend/public && cp -r dist ../backend/public && cd ../backend && npm install
-    startCommand: cd backend && npm start
+    rootDir: backend
+    buildCommand: cd ../frontend && npm install && npm run build && mkdir -p ../backend/public && cp -r dist/* ../backend/public/ && cd ../backend && npm install
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
