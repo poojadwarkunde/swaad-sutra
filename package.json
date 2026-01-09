@@ -2,11 +2,16 @@
   "name": "swaad-sutra",
   "version": "1.0.0",
   "description": "Society Home Food Ordering - Swaad Sutra",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "dev": "echo 'Run backend and frontend separately - see README'",
-    "build": "cd frontend && npm install && npm run build && mkdir -p ../backend/public && cp -r dist/* ../backend/public/",
-    "start": "cd backend && node server.js",
-    "postinstall": "cd backend && npm install"
+    "build": "npm run build:frontend && npm run build:copy && npm run build:backend",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "build:copy": "mkdir -p backend/public && cp -r frontend/dist/* backend/public/",
+    "build:backend": "cd backend && npm install",
+    "start": "cd backend && node server.js"
   }
 }
