@@ -7,6 +7,7 @@ function MenuPage() {
   const [showCheckout, setShowCheckout] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [flatNumber, setFlatNumber] = useState('')
+  const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
   const [collectDate, setCollectDate] = useState('')
   const [collectTime, setCollectTime] = useState('')
@@ -45,6 +46,7 @@ function MenuPage() {
       const userData = JSON.parse(savedUser)
       setUser(userData)
       setCustomerName(userData.name)
+      setPhone(userData.mobile || '')
     }
     fetchMenuItems()
   }, [])
@@ -157,6 +159,45 @@ function MenuPage() {
   const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0)
   const totalItems = cartItems.reduce((sum, item) => sum + item.qty, 0)
 
+  // Format phone for WhatsApp
+  const formatPhoneForWhatsApp = (phoneNum) => {
+    if (!phoneNum) return null
+    let cleaned = phoneNum.replace(/\D/g, '')
+    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1)
+    if (cleaned.length === 10) cleaned = '91' + cleaned
+    if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned
+    if (cleaned.length >= 12) return cleaned
+    return null
+  }
+
+  // Send WhatsApp message for new order
+  const sendOrderConfirmationWhatsApp = (order) => {
+    const phoneFormatted = formatPhoneForWhatsApp(order.phone)
+    if (!phoneFormatted) return
+    
+    const itemsList = order.items.map(i => `${i.name} x${i.qty}`).join('\n• ')
+    const collectInfo = order.collectDate ? `📅 Collection: ${order.collectDate} ${order.collectTime || ''}` : ''
+    
+    const message = `🍽️ *Swaad Sutra - Order Confirmed!*
+
+📋 Order #${order.id || order.orderId}
+👤 ${order.customerName}
+🏠 Flat: ${order.flatNumber}
+${collectInfo}
+
+🛍️ *Items:*
+• ${itemsList}
+
+💰 *Total: ₹${order.totalAmount}*
+
+✅ We've received your order and will start preparing soon!
+
+Thank you for ordering from Swaad Sutra! 🙏`
+
+    const encodedMessage = encodeURIComponent(message)
+    window.open(`https://wa.me/${phoneFormatted}?text=${encodedMessage}`, '_blank')
+  }
+
   const handlePlaceOrder = async () => {
     if (!customerName.trim() || !flatNumber.trim()) {
       alert('Please enter your name and flat number')
@@ -171,6 +212,7 @@ function MenuPage() {
         body: JSON.stringify({
           customerName: customerName.trim(),
           flatNumber: flatNumber.trim(),
+          phone: phone.trim(),
           items: cartItems.map(({ name, qty, unit, price }) => ({ name, qty, unit, price })),
           totalAmount,
           collectDate,
@@ -180,6 +222,22 @@ function MenuPage() {
       })
 
       if (!response.ok) throw new Error('Failed to place order')
+      
+      const orderData = await response.json()
+
+      // Send WhatsApp confirmation if phone provided
+      if (phone.trim()) {
+        sendOrderConfirmationWhatsApp({
+          ...orderData,
+          customerName: customerName.trim(),
+          flatNumber: flatNumber.trim(),
+          phone: phone.trim(),
+          items: cartItems.map(({ name, qty, unit, price }) => ({ name, qty, unit, price })),
+          totalAmount,
+          collectDate,
+          collectTime
+        })
+      }
 
       setOrderTime(new Date())
       setOrderSuccess(true)
@@ -187,6 +245,7 @@ function MenuPage() {
       setShowCheckout(false)
       if (!user) {
         setCustomerName('')
+        setPhone('')
       }
       setFlatNumber('')
       setCollectDate('')
@@ -380,6 +439,14 @@ function MenuPage() {
                 value={flatNumber}
                 onChange={e => setFlatNumber(e.target.value)}
                 className="input"
+              />
+              <input
+                type="tel"
+                placeholder="Mobile Number (for WhatsApp updates)"
+                value={phone}
+                onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                className="input"
+                maxLength={10}
               />
               
               <div className="collect-datetime">

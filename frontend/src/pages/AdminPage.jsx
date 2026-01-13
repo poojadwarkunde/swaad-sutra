@@ -277,20 +277,78 @@ function AdminPage() {
   }
 
   const getStatusMessage = (order) => {
-    const itemsList = order.items.map(i => `${i.name} x${i.qty}`).join(', ')
-    const collectInfo = order.collectDate ? `\nCollection: ${order.collectDate} ${order.collectTime || ''}` : ''
+    const itemsList = order.items.map(i => `${i.name} x${i.qty}`).join('\n• ')
+    const collectInfo = order.collectDate ? `📅 Collection: ${order.collectDate} ${order.collectTime || ''}` : ''
     
     switch (order.status) {
+      case 'NEW':
+        return `🍽️ *Swaad Sutra - Order Received!*
+
+📋 Order #${order.id || order.orderId}
+👤 ${order.customerName}
+🏠 Flat: ${order.flatNumber}
+${collectInfo}
+
+🛍️ *Items:*
+• ${itemsList}
+
+💰 *Total: ₹${order.totalAmount}*
+
+✅ We've received your order and will start preparing soon!
+
+Thank you for ordering from Swaad Sutra! 🙏`
       case 'COOKING':
-        return `🍽️ Swaad Sutra: Your order #${order.id} is being prepared!\n\nItems: ${itemsList}${collectInfo}\n\nWe'll notify you when it's ready. Thank you!`
+        return `🍳 *Swaad Sutra - Order Being Prepared!*
+
+📋 Order #${order.id || order.orderId}
+${collectInfo}
+
+🛍️ *Items:*
+• ${itemsList}
+
+👨‍🍳 Your delicious food is being prepared!
+
+We'll notify you when it's ready. Thank you! 🙏`
       case 'READY':
-        return `✅ Swaad Sutra: Your order #${order.id} is READY for pickup!\n\nItems: ${itemsList}\nFlat: ${order.flatNumber}\nTotal: ₹${order.totalAmount}\n\nPlease collect your order. Thank you!`
+        return `✅ *Swaad Sutra - Order READY!*
+
+📋 Order #${order.id || order.orderId}
+🏠 Flat: ${order.flatNumber}
+
+🛍️ *Items:*
+• ${itemsList}
+
+💰 *Total: ₹${order.totalAmount}*
+
+🎉 Your order is ready for pickup!
+
+Please collect your fresh homemade food. Thank you! 🙏`
       case 'DELIVERED':
-        return `🎉 Swaad Sutra: Your order #${order.id} has been delivered!\n\nWe hope you enjoy your meal. Thank you for ordering! 🍽️`
+        return `🎉 *Swaad Sutra - Order Delivered!*
+
+📋 Order #${order.id || order.orderId}
+
+✅ Your order has been delivered!
+
+We hope you enjoy your homemade meal. Thank you for ordering from Swaad Sutra! 🍽️🙏`
       case 'CANCELLED':
-        return `❌ Swaad Sutra: Your order #${order.id} has been cancelled.\n\nReason: ${order.cancelReason || 'N/A'}\n\nIf you have questions, please contact us.`
+        return `❌ *Swaad Sutra - Order Cancelled*
+
+📋 Order #${order.id || order.orderId}
+
+⚠️ Reason: ${order.cancelReason || 'N/A'}
+
+If you have questions, please contact us.`
       default:
-        return `🍽️ Swaad Sutra: Update for your order #${order.id}\n\nStatus: ${order.status}\nItems: ${itemsList}\nTotal: ₹${order.totalAmount}`
+        return `🍽️ *Swaad Sutra - Order Update*
+
+📋 Order #${order.id || order.orderId}
+📊 Status: ${order.status}
+
+🛍️ *Items:*
+• ${itemsList}
+
+💰 *Total: ₹${order.totalAmount}*`
     }
   }
 
