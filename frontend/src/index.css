@@ -1980,6 +1980,20 @@ body {
   margin-top: 10px;
 }
 
+/* Refresh Button */
+.refresh-btn {
+  transition: all 0.2s;
+}
+
+.refresh-btn.refreshing {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.refresh-btn:not(:disabled):active {
+  transform: scale(0.95);
+}
+
 /* Image Zoom Styles */
 .menu-image-wrapper.zoomable {
   cursor: zoom-in;

@@ -16,6 +16,7 @@ function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('orders')
+  const [refreshing, setRefreshing] = useState(false)
   
   // Filter & Sort state
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -76,6 +77,15 @@ function AdminPage() {
       setProducts(data)
     } catch (err) {
       console.error('Failed to load products:', err)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([fetchOrders(), fetchProducts()])
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -597,7 +607,13 @@ If you have questions, please contact us.`
           <p>Kitchen Dashboard</p>
         </div>
         <div className="header-actions">
-          <button className="btn btn-secondary refresh-btn" onClick={() => { fetchOrders(); fetchProducts(); }}>↻ Refresh</button>
+          <button 
+            className={`btn btn-secondary refresh-btn ${refreshing ? 'refreshing' : ''}`}
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? '🔄 Refreshing...' : '↻ Refresh'}
+          </button>
         </div>
       </header>
 
