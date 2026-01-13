@@ -1661,3 +1661,145 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* WhatsApp Status Badge */
+.whatsapp-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.whatsapp-status-badge.connected {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.whatsapp-status-badge.qr_ready {
+  background: #fef9c3;
+  color: #854d0e;
+  animation: blink 1.5s infinite;
+}
+
+.whatsapp-status-badge.connecting {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.whatsapp-status-badge.disconnected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.whatsapp-status-badge:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* WhatsApp Modal */
+.whatsapp-modal {
+  max-width: 450px;
+}
+
+.wa-status-display {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.wa-connected,
+.wa-connecting,
+.wa-disconnected {
+  padding: 30px 20px;
+}
+
+.wa-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.wa-icon.spin {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.wa-status-display h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
+}
+
+.wa-status-display p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.wa-info {
+  background: #f0fdf4;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.wa-info p {
+  font-weight: 600;
+  color: #166534;
+  margin-bottom: 8px;
+}
+
+.wa-info ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #15803d;
+  font-size: 0.9rem;
+}
+
+.wa-info li {
+  margin: 4px 0;
+}
+
+.wa-qr-section {
+  padding: 20px;
+}
+
+.wa-qr-section h3 {
+  margin: 0 0 8px 0;
+}
+
+.wa-qr-section p {
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.wa-qr-image {
+  max-width: 280px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 4px solid #25D366;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+.wa-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.wa-actions .btn {
+  min-width: 140px;
+}

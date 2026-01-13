@@ -17,6 +17,11 @@ function AdminPage() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('orders')
   
+  // WhatsApp status
+  const [whatsappStatus, setWhatsappStatus] = useState('disconnected')
+  const [whatsappQR, setWhatsappQR] = useState(null)
+  const [showQRModal, setShowQRModal] = useState(false)
+  
   // Filter & Sort state
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [paymentFilter, setPaymentFilter] = useState('ALL')
@@ -79,11 +84,71 @@ function AdminPage() {
     }
   }
 
+  // Fetch WhatsApp status
+  const fetchWhatsAppStatus = async () => {
+    try {
+      const response = await fetch('/api/whatsapp/status')
+      if (response.ok) {
+        const data = await response.json()
+        setWhatsappStatus(data.status)
+        if (data.qrAvailable) {
+          fetchWhatsAppQR()
+        } else {
+          setWhatsappQR(null)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch WhatsApp status:', err)
+    }
+  }
+
+  const fetchWhatsAppQR = async () => {
+    try {
+      const response = await fetch('/api/whatsapp/qr')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.qr) {
+          setWhatsappQR(data.qr)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch QR:', err)
+    }
+  }
+
+  const restartWhatsApp = async () => {
+    try {
+      const response = await fetch('/api/whatsapp/restart', { method: 'POST' })
+      const data = await response.json()
+      alert(data.message || 'WhatsApp restarting...')
+      setTimeout(fetchWhatsAppStatus, 3000)
+    } catch (err) {
+      alert('Failed to restart WhatsApp')
+    }
+  }
+
+  const logoutWhatsApp = async () => {
+    if (!confirm('This will disconnect WhatsApp and require scanning QR code again. Continue?')) return
+    try {
+      const response = await fetch('/api/whatsapp/logout', { method: 'POST' })
+      const data = await response.json()
+      alert(data.message || 'Logged out')
+      setTimeout(fetchWhatsAppStatus, 3000)
+    } catch (err) {
+      alert('Failed to logout')
+    }
+  }
+
   useEffect(() => {
     fetchOrders()
     fetchProducts()
-    const interval = setInterval(fetchOrders, 30000)
-    return () => clearInterval(interval)
+    fetchWhatsAppStatus()
+    const ordersInterval = setInterval(fetchOrders, 30000)
+    const waInterval = setInterval(fetchWhatsAppStatus, 5000)
+    return () => {
+      clearInterval(ordersInterval)
+      clearInterval(waInterval)
+    }
   }, [])
 
   const updateOrder = async (id, updates) => {
@@ -594,7 +659,18 @@ If you have questions, please contact us.`
           <h1>🍽️ Swaad Sutra Admin</h1>
           <p>Kitchen Dashboard</p>
         </div>
-        <button className="btn btn-secondary refresh-btn" onClick={() => { fetchOrders(); fetchProducts(); }}>↻ Refresh</button>
+        <div className="header-actions">
+          <div 
+            className={`whatsapp-status-badge ${whatsappStatus}`}
+            onClick={() => setShowQRModal(true)}
+            title="Click to manage WhatsApp"
+          >
+            📱 {whatsappStatus === 'connected' ? '✅ Connected' : 
+                whatsappStatus === 'qr_ready' ? '📲 Scan QR' : 
+                whatsappStatus === 'connecting' ? '🔄 Connecting...' : '❌ Disconnected'}
+          </div>
+          <button className="btn btn-secondary refresh-btn" onClick={() => { fetchOrders(); fetchProducts(); fetchWhatsAppStatus(); }}>↻ Refresh</button>
+        </div>
       </header>
 
       {/* Tabs */}
@@ -1126,6 +1202,79 @@ If you have questions, please contact us.`
                 disabled={savingProduct}
               >
                 {savingProduct ? 'Saving...' : 'Save Item'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Status Modal */}
+      {showQRModal && (
+        <div className="modal-overlay" onClick={() => setShowQRModal(false)}>
+          <div className="modal whatsapp-modal" onClick={e => e.stopPropagation()}>
+            <h2>📱 WhatsApp Status</h2>
+            
+            <div className={`wa-status-display ${whatsappStatus}`}>
+              {whatsappStatus === 'connected' && (
+                <>
+                  <div className="wa-connected">
+                    <span className="wa-icon">✅</span>
+                    <h3>WhatsApp Connected!</h3>
+                    <p>Messages will be sent automatically when order status changes.</p>
+                  </div>
+                  <div className="wa-info">
+                    <p>📤 Auto-notifications enabled for:</p>
+                    <ul>
+                      <li>✓ New order confirmation</li>
+                      <li>✓ Order cooking status</li>
+                      <li>✓ Order ready notification</li>
+                      <li>✓ Delivery confirmation</li>
+                      <li>✓ Cancellation alerts</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+              
+              {whatsappStatus === 'qr_ready' && whatsappQR && (
+                <>
+                  <div className="wa-qr-section">
+                    <h3>Scan QR Code to Connect</h3>
+                    <p>Open WhatsApp on your phone → Settings → Linked Devices → Link a Device</p>
+                    <img src={whatsappQR} alt="WhatsApp QR Code" className="wa-qr-image" />
+                  </div>
+                </>
+              )}
+              
+              {whatsappStatus === 'connecting' && (
+                <div className="wa-connecting">
+                  <span className="wa-icon spin">🔄</span>
+                  <h3>Connecting...</h3>
+                  <p>Please wait while WhatsApp connects.</p>
+                </div>
+              )}
+              
+              {whatsappStatus === 'disconnected' && !whatsappQR && (
+                <div className="wa-disconnected">
+                  <span className="wa-icon">❌</span>
+                  <h3>WhatsApp Disconnected</h3>
+                  <p>Click "Restart" to generate a new QR code.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="wa-actions">
+              {whatsappStatus === 'connected' && (
+                <button className="btn btn-danger" onClick={logoutWhatsApp}>
+                  🔓 Logout & Reset
+                </button>
+              )}
+              {whatsappStatus !== 'connected' && (
+                <button className="btn btn-primary" onClick={restartWhatsApp}>
+                  🔄 Restart WhatsApp
+                </button>
+              )}
+              <button className="btn btn-secondary" onClick={() => setShowQRModal(false)}>
+                Close
               </button>
             </div>
           </div>

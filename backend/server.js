@@ -6,9 +6,205 @@ const mongoose = require('mongoose');
 const XLSX = require('xlsx');
 const cron = require('node-cron');
 const https = require('https');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const QRCode = require('qrcode');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// =====================
+// WHATSAPP WEB CLIENT
+// =====================
+let whatsappClient = null;
+let whatsappQR = null;
+let whatsappStatus = 'disconnected'; // disconnected, qr_ready, connecting, connected
+
+// Initialize WhatsApp client
+function initWhatsApp() {
+  console.log('📱 Initializing WhatsApp client...');
+  
+  whatsappClient = new Client({
+    authStrategy: new LocalAuth({
+      dataPath: path.join(__dirname, '.wwebjs_auth')
+    }),
+    puppeteer: {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ]
+    }
+  });
+
+  whatsappClient.on('qr', async (qr) => {
+    console.log('📱 WhatsApp QR Code received. Scan to authenticate.');
+    whatsappStatus = 'qr_ready';
+    try {
+      whatsappQR = await QRCode.toDataURL(qr);
+    } catch (err) {
+      console.error('Error generating QR code:', err);
+    }
+  });
+
+  whatsappClient.on('ready', () => {
+    console.log('✅ WhatsApp client is ready!');
+    whatsappStatus = 'connected';
+    whatsappQR = null;
+  });
+
+  whatsappClient.on('authenticated', () => {
+    console.log('✅ WhatsApp authenticated');
+    whatsappStatus = 'connecting';
+  });
+
+  whatsappClient.on('auth_failure', (msg) => {
+    console.error('❌ WhatsApp auth failure:', msg);
+    whatsappStatus = 'disconnected';
+  });
+
+  whatsappClient.on('disconnected', (reason) => {
+    console.log('📱 WhatsApp disconnected:', reason);
+    whatsappStatus = 'disconnected';
+    whatsappQR = null;
+    // Auto reconnect after 5 seconds
+    setTimeout(() => {
+      console.log('📱 Attempting to reconnect WhatsApp...');
+      initWhatsApp();
+    }, 5000);
+  });
+
+  whatsappClient.initialize();
+}
+
+// Format phone number for WhatsApp
+function formatPhoneForWhatsApp(phone) {
+  if (!phone) return null;
+  // Remove all non-digit characters
+  let cleaned = phone.toString().replace(/\D/g, '');
+  // Remove leading 0 if present
+  if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+  // Handle Indian numbers
+  if (cleaned.length === 10) {
+    cleaned = '91' + cleaned;
+  } else if (cleaned.startsWith('91') && cleaned.length === 12) {
+    // Already formatted correctly
+  } else if (cleaned.length > 10 && !cleaned.startsWith('91')) {
+    // Might be international, keep as is
+  } else {
+    return null;
+  }
+  return cleaned;
+}
+
+// Send WhatsApp message
+async function sendWhatsAppMessage(phone, message) {
+  if (!whatsappClient || whatsappStatus !== 'connected') {
+    console.log('⚠️ WhatsApp not connected. Message not sent.');
+    return { success: false, error: 'WhatsApp not connected' };
+  }
+
+  const formattedPhone = formatPhoneForWhatsApp(phone);
+  if (!formattedPhone) {
+    console.log('⚠️ Invalid phone number:', phone);
+    return { success: false, error: 'Invalid phone number' };
+  }
+
+  try {
+    const chatId = formattedPhone + '@c.us';
+    await whatsappClient.sendMessage(chatId, message);
+    console.log(`✅ WhatsApp message sent to ${formattedPhone}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ WhatsApp send error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Generate order status message
+function getStatusMessage(order, status) {
+  const itemsList = order.items.map(i => `${i.name} x${i.qty}`).join('\n• ');
+  const collectInfo = order.collectDate ? `📅 Collection: ${order.collectDate} ${order.collectTime || ''}` : '';
+  
+  switch (status) {
+    case 'NEW':
+      return `🍽️ *Swaad Sutra - Order Received!*
+
+📋 Order #${order.orderId}
+👤 ${order.customerName}
+🏠 Flat: ${order.flatNumber}
+${collectInfo}
+
+🛍️ *Items:*
+• ${itemsList}
+
+💰 *Total: ₹${order.totalAmount}*
+
+✅ We've received your order and will start preparing soon!
+
+Thank you for ordering from Swaad Sutra! 🙏`;
+    case 'COOKING':
+      return `🍳 *Swaad Sutra - Order Being Prepared!*
+
+📋 Order #${order.orderId}
+${collectInfo}
+
+🛍️ *Items:*
+• ${itemsList}
+
+👨‍🍳 Your delicious food is being prepared!
+
+We'll notify you when it's ready. Thank you! 🙏`;
+    case 'READY':
+      return `✅ *Swaad Sutra - Order READY!*
+
+📋 Order #${order.orderId}
+🏠 Flat: ${order.flatNumber}
+
+🛍️ *Items:*
+• ${itemsList}
+
+💰 *Total: ₹${order.totalAmount}*
+
+🎉 Your order is ready for pickup!
+
+Please collect your fresh homemade food. Thank you! 🙏`;
+    case 'DELIVERED':
+      return `🎉 *Swaad Sutra - Order Delivered!*
+
+📋 Order #${order.orderId}
+
+✅ Your order has been delivered!
+
+We hope you enjoy your homemade meal. Thank you for ordering from Swaad Sutra! 🍽️🙏`;
+    case 'CANCELLED':
+      return `❌ *Swaad Sutra - Order Cancelled*
+
+📋 Order #${order.orderId}
+
+⚠️ Reason: ${order.cancelReason || 'N/A'}
+
+If you have questions, please contact us.`;
+    default:
+      return `🍽️ *Swaad Sutra - Order Update*
+
+📋 Order #${order.orderId}
+📊 Status: ${status}
+
+🛍️ *Items:*
+• ${itemsList}
+
+💰 *Total: ₹${order.totalAmount}*`;
+  }
+}
+
+// Initialize WhatsApp on startup
+initWhatsApp();
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://swaadsutra:SwaadSutra2026%21@cluster0.ucxzf4e.mongodb.net/swaadsutra?retryWrites=true&w=majority';
@@ -591,6 +787,12 @@ app.post('/api/orders', async (req, res) => {
     
     await order.save();
     
+    // Auto-send WhatsApp notification for new order
+    if (phone) {
+      const message = getStatusMessage(order, 'NEW');
+      sendWhatsAppMessage(phone, message).catch(err => console.error('WhatsApp send error:', err));
+    }
+    
     // Auto-generate and upload reports to GitHub
     generateAndUploadReports().catch(err => console.error('Report generation error:', err));
     
@@ -605,6 +807,10 @@ app.put('/api/orders/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, paymentStatus, cancelReason, cancelledAt, adminFeedback, feedbackAt } = req.body;
+    
+    // Get old order to check status change
+    const oldOrder = await Order.findOne({ orderId: parseInt(id) });
+    const oldStatus = oldOrder ? oldOrder.status : null;
     
     const updates = {};
     if (status) updates.status = status;
@@ -622,6 +828,12 @@ app.put('/api/orders/:id', async (req, res) => {
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    // Auto-send WhatsApp notification if status changed
+    if (status && status !== oldStatus && order.phone) {
+      const message = getStatusMessage(order, status);
+      sendWhatsAppMessage(order.phone, message).catch(err => console.error('WhatsApp send error:', err));
     }
     
     // Auto-generate and upload reports to GitHub on status/payment update
@@ -741,12 +953,104 @@ app.get('/api/export/list', (req, res) => {
   }
 });
 
+// =====================
+// WHATSAPP ENDPOINTS
+// =====================
+
+// Get WhatsApp status
+app.get('/api/whatsapp/status', (req, res) => {
+  res.json({
+    status: whatsappStatus,
+    connected: whatsappStatus === 'connected',
+    qrAvailable: whatsappStatus === 'qr_ready' && whatsappQR !== null
+  });
+});
+
+// Get QR code for WhatsApp authentication
+app.get('/api/whatsapp/qr', (req, res) => {
+  if (whatsappStatus === 'connected') {
+    return res.json({ 
+      success: false, 
+      message: 'WhatsApp already connected',
+      status: 'connected'
+    });
+  }
+  if (whatsappQR) {
+    return res.json({ 
+      success: true, 
+      qr: whatsappQR,
+      status: whatsappStatus
+    });
+  }
+  res.json({ 
+    success: false, 
+    message: 'QR code not available yet. Please wait...',
+    status: whatsappStatus
+  });
+});
+
+// Restart WhatsApp client (if needed)
+app.post('/api/whatsapp/restart', (req, res) => {
+  console.log('📱 Restarting WhatsApp client...');
+  if (whatsappClient) {
+    whatsappClient.destroy().then(() => {
+      whatsappStatus = 'disconnected';
+      whatsappQR = null;
+      setTimeout(() => {
+        initWhatsApp();
+      }, 2000);
+      res.json({ success: true, message: 'WhatsApp client restarting...' });
+    }).catch(err => {
+      console.error('Error destroying client:', err);
+      res.json({ success: false, error: err.message });
+    });
+  } else {
+    initWhatsApp();
+    res.json({ success: true, message: 'WhatsApp client starting...' });
+  }
+});
+
+// Logout WhatsApp (to reset and get new QR)
+app.post('/api/whatsapp/logout', async (req, res) => {
+  try {
+    if (whatsappClient) {
+      await whatsappClient.logout();
+      console.log('📱 WhatsApp logged out');
+    }
+    // Delete auth data
+    const authPath = path.join(__dirname, '.wwebjs_auth');
+    if (fs.existsSync(authPath)) {
+      fs.rmSync(authPath, { recursive: true, force: true });
+    }
+    whatsappStatus = 'disconnected';
+    whatsappQR = null;
+    setTimeout(() => {
+      initWhatsApp();
+    }, 2000);
+    res.json({ success: true, message: 'Logged out. Scan new QR code to reconnect.' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Manual send message endpoint
+app.post('/api/whatsapp/send', async (req, res) => {
+  const { phone, message } = req.body;
+  if (!phone || !message) {
+    return res.status(400).json({ error: 'Phone and message required' });
+  }
+  const result = await sendWhatsAppMessage(phone, message);
+  res.json(result);
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     app: 'Swaad Sutra',
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' 
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    whatsapp: whatsappStatus
   });
 });
 
