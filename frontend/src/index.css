@@ -697,6 +697,46 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.summary-header h2 {
+  font-size: 1rem;
+  margin: 0;
+  color: var(--color-secondary);
+}
+
+.export-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-export:hover {
+  background: #c8e6c9;
+}
+
 .summary-section h2 {
   font-size: 1rem;
   margin-bottom: 16px;

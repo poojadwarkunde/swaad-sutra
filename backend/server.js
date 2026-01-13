@@ -2,14 +2,19 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const db = require('./database');
+const mongoose = require('mongoose');
+const XLSX = require('xlsx');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Storage files
-const USERS_FILE = path.join(__dirname, 'users.json');
-const PRODUCTS_FILE = path.join(__dirname, 'products.json');
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://swaadsutra:swaadsutra123@cluster0.mongodb.net/swaadsutra?retryWrites=true&w=majority';
+
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Default menu items
 const DEFAULT_PRODUCTS = [
@@ -32,83 +37,298 @@ const DEFAULT_PRODUCTS = [
   { id: 17, name: 'Onion Pakoda (Kanda Bhaje)', price: 60, unit: 'Plate', emoji: '🧅', image: '/images/Onion-Pakoda.webp', available: true },
 ];
 
-// Products storage
-function loadProducts() {
-  try {
-    if (fs.existsSync(PRODUCTS_FILE)) {
-      const data = fs.readFileSync(PRODUCTS_FILE, 'utf8');
-      return JSON.parse(data);
+// MongoDB Schemas
+const orderSchema = new mongoose.Schema({
+  orderId: { type: Number, unique: true },
+  customerName: String,
+  flatNumber: String,
+  phone: String,
+  items: [{
+    id: Number,
+    name: String,
+    price: Number,
+    qty: Number,
+    unit: String
+  }],
+  totalAmount: Number,
+  status: { type: String, default: 'NEW' },
+  paymentStatus: { type: String, default: 'PENDING' },
+  collectDate: String,
+  collectTime: String,
+  notes: String,
+  cancelReason: String,
+  cancelledAt: Date,
+  adminFeedback: String,
+  feedbackAt: Date,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const productSchema = new mongoose.Schema({
+  productId: { type: Number, unique: true },
+  name: String,
+  price: Number,
+  unit: String,
+  emoji: String,
+  image: String,
+  available: { type: Boolean, default: true }
+});
+
+const userSchema = new mongoose.Schema({
+  userId: { type: Number, unique: true },
+  name: String,
+  mobile: { type: String, unique: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const counterSchema = new mongoose.Schema({
+  name: String,
+  value: Number
+});
+
+const Order = mongoose.model('Order', orderSchema);
+const Product = mongoose.model('Product', productSchema);
+const User = mongoose.model('User', userSchema);
+const Counter = mongoose.model('Counter', counterSchema);
+
+// Get next ID for a counter
+async function getNextId(counterName) {
+  const counter = await Counter.findOneAndUpdate(
+    { name: counterName },
+    { $inc: { value: 1 } },
+    { new: true, upsert: true }
+  );
+  return counter.value;
+}
+
+// Initialize products in MongoDB if empty
+async function initializeProducts() {
+  const count = await Product.countDocuments();
+  if (count === 0) {
+    console.log('Initializing products in MongoDB...');
+    for (const product of DEFAULT_PRODUCTS) {
+      await Product.create({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        unit: product.unit,
+        emoji: product.emoji,
+        image: product.image,
+        available: product.available
+      });
     }
-  } catch (err) {
-    console.error('Error loading products:', err);
+    await Counter.findOneAndUpdate(
+      { name: 'productId' },
+      { value: DEFAULT_PRODUCTS.length },
+      { upsert: true }
+    );
+    console.log('✅ Products initialized');
   }
-  return { products: DEFAULT_PRODUCTS, nextId: 18 };
 }
 
-function saveProducts(data) {
-  fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(data, null, 2));
+// Run initialization after connection
+mongoose.connection.once('open', () => {
+  initializeProducts();
+});
+
+// Excel Export Functions
+const EXPORTS_DIR = path.join(__dirname, 'exports');
+if (!fs.existsSync(EXPORTS_DIR)) {
+  fs.mkdirSync(EXPORTS_DIR, { recursive: true });
 }
 
-// Initialize products file if it doesn't exist
-if (!fs.existsSync(PRODUCTS_FILE)) {
-  saveProducts({ products: DEFAULT_PRODUCTS, nextId: 18 });
-  console.log('Created products.json file');
+function formatDate(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Users storage
-function loadUsers() {
-  try {
-    if (fs.existsSync(USERS_FILE)) {
-      const data = fs.readFileSync(USERS_FILE, 'utf8');
-      return JSON.parse(data);
+function formatDateTime(date) {
+  const d = new Date(date);
+  return `${formatDate(date)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+async function generateDailySheet(date = new Date()) {
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const orders = await Order.find({
+    createdAt: { $gte: startOfDay, $lte: endOfDay }
+  }).sort({ createdAt: -1 });
+
+  const data = orders.map(order => ({
+    'Order ID': order.orderId,
+    'Date': formatDateTime(order.createdAt),
+    'Customer': order.customerName,
+    'Flat No': order.flatNumber,
+    'Phone': order.phone || '',
+    'Items': order.items.map(i => `${i.name} x${i.qty}`).join(', '),
+    'Total': order.totalAmount,
+    'Status': order.status,
+    'Payment': order.paymentStatus,
+    'Collection Date': order.collectDate || '',
+    'Collection Time': order.collectTime || '',
+    'Notes': order.notes || '',
+    'Cancel Reason': order.cancelReason || '',
+    'Feedback': order.adminFeedback || ''
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Daily Orders');
+
+  // Add summary sheet
+  const summary = [{
+    'Total Orders': orders.length,
+    'New': orders.filter(o => o.status === 'NEW').length,
+    'Cooking': orders.filter(o => o.status === 'COOKING').length,
+    'Ready': orders.filter(o => o.status === 'READY').length,
+    'Delivered': orders.filter(o => o.status === 'DELIVERED').length,
+    'Cancelled': orders.filter(o => o.status === 'CANCELLED').length,
+    'Total Revenue': orders.filter(o => o.status !== 'CANCELLED').reduce((sum, o) => sum + o.totalAmount, 0),
+    'Paid Amount': orders.filter(o => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.totalAmount, 0)
+  }];
+  const summaryWs = XLSX.utils.json_to_sheet(summary);
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+
+  // Add items breakdown sheet
+  const itemsMap = {};
+  orders.forEach(order => {
+    if (order.status !== 'CANCELLED') {
+      order.items.forEach(item => {
+        if (!itemsMap[item.name]) {
+          itemsMap[item.name] = { qty: 0, revenue: 0 };
+        }
+        itemsMap[item.name].qty += item.qty;
+        itemsMap[item.name].revenue += item.price * item.qty;
+      });
     }
+  });
+  const itemsData = Object.entries(itemsMap).map(([name, data]) => ({
+    'Item': name,
+    'Quantity Ordered': data.qty,
+    'Revenue': data.revenue
+  })).sort((a, b) => b['Quantity Ordered'] - a['Quantity Ordered']);
+  
+  const itemsWs = XLSX.utils.json_to_sheet(itemsData);
+  XLSX.utils.book_append_sheet(wb, itemsWs, 'Items Breakdown');
+
+  const filename = `SwaadSutra_Daily_${formatDate(date)}.xlsx`;
+  const filepath = path.join(EXPORTS_DIR, filename);
+  XLSX.writeFile(wb, filepath);
+  
+  console.log(`📊 Daily sheet generated: ${filename}`);
+  return { filename, filepath };
+}
+
+async function generateConsolidatedSheet() {
+  const orders = await Order.find().sort({ createdAt: -1 });
+
+  const data = orders.map(order => ({
+    'Order ID': order.orderId,
+    'Date': formatDateTime(order.createdAt),
+    'Customer': order.customerName,
+    'Flat No': order.flatNumber,
+    'Phone': order.phone || '',
+    'Items': order.items.map(i => `${i.name} x${i.qty}`).join(', '),
+    'Total': order.totalAmount,
+    'Status': order.status,
+    'Payment': order.paymentStatus,
+    'Collection Date': order.collectDate || '',
+    'Collection Time': order.collectTime || '',
+    'Notes': order.notes || '',
+    'Cancel Reason': order.cancelReason || '',
+    'Feedback': order.adminFeedback || ''
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'All Orders');
+
+  // Add daily summary sheet
+  const ordersByDate = {};
+  orders.forEach(order => {
+    const date = formatDate(order.createdAt);
+    if (!ordersByDate[date]) {
+      ordersByDate[date] = { orders: [], revenue: 0, paid: 0 };
+    }
+    ordersByDate[date].orders.push(order);
+    if (order.status !== 'CANCELLED') {
+      ordersByDate[date].revenue += order.totalAmount;
+    }
+    if (order.paymentStatus === 'PAID') {
+      ordersByDate[date].paid += order.totalAmount;
+    }
+  });
+
+  const dailySummary = Object.entries(ordersByDate).map(([date, data]) => ({
+    'Date': date,
+    'Total Orders': data.orders.length,
+    'Delivered': data.orders.filter(o => o.status === 'DELIVERED').length,
+    'Cancelled': data.orders.filter(o => o.status === 'CANCELLED').length,
+    'Revenue': data.revenue,
+    'Paid': data.paid,
+    'Pending': data.revenue - data.paid
+  }));
+
+  const summaryWs = XLSX.utils.json_to_sheet(dailySummary);
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Daily Summary');
+
+  const filename = `SwaadSutra_Consolidated_${formatDate(new Date())}.xlsx`;
+  const filepath = path.join(EXPORTS_DIR, filename);
+  XLSX.writeFile(wb, filepath);
+  
+  console.log(`📊 Consolidated sheet generated: ${filename}`);
+  return { filename, filepath };
+}
+
+// Schedule daily export at 11:59 PM
+cron.schedule('59 23 * * *', async () => {
+  console.log('⏰ Running scheduled daily export...');
+  try {
+    await generateDailySheet();
+    await generateConsolidatedSheet();
   } catch (err) {
-    console.error('Error loading users:', err);
+    console.error('Error in scheduled export:', err);
   }
-  return { users: [], nextUserId: 1 };
-}
-
-function saveUsers(data) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
-}
-
-// Initialize users file if it doesn't exist
-if (!fs.existsSync(USERS_FILE)) {
-  saveUsers({ users: [], nextUserId: 1 });
-  console.log('Created users.json file');
-}
+});
 
 app.use(cors());
 app.use(express.json());
 
 // Serve static frontend files in production
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/exports', express.static(EXPORTS_DIR));
 
 // =====================
 // PRODUCT/MENU ENDPOINTS
 // =====================
 
-// GET all products (menu items)
-app.get('/api/products', (req, res) => {
+app.get('/api/products', async (req, res) => {
   try {
     const { includeHidden } = req.query;
-    const data = loadProducts();
-    let products = data.products;
+    let products = await Product.find().sort({ productId: 1 });
     
-    // Filter out unavailable products for customers
     if (includeHidden !== 'true') {
       products = products.filter(p => p.available !== false);
     }
     
-    res.json(products);
+    res.json(products.map(p => ({
+      id: p.productId,
+      name: p.name,
+      price: p.price,
+      unit: p.unit,
+      emoji: p.emoji,
+      image: p.image,
+      available: p.available
+    })));
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
 
-// POST add new product
-app.post('/api/products', (req, res) => {
+app.post('/api/products', async (req, res) => {
   try {
     const { name, price, unit, emoji, image } = req.body;
     
@@ -116,70 +336,79 @@ app.post('/api/products', (req, res) => {
       return res.status(400).json({ error: 'Name and price are required' });
     }
     
-    const data = loadProducts();
-    const newProduct = {
-      id: data.nextId,
+    const productId = await getNextId('productId');
+    const product = new Product({
+      productId,
       name: name.trim(),
       price: parseInt(price) || 0,
       unit: unit || 'pc',
       emoji: emoji || '🍽️',
       image: image || '/images/placeholder.jpg',
       available: true
-    };
+    });
     
-    data.products.push(newProduct);
-    data.nextId++;
-    saveProducts(data);
-    
-    res.status(201).json(newProduct);
+    await product.save();
+    res.status(201).json({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      unit: product.unit,
+      emoji: product.emoji,
+      image: product.image,
+      available: product.available
+    });
   } catch (error) {
     console.error('Error adding product:', error);
     res.status(500).json({ error: 'Failed to add product' });
   }
 });
 
-// PUT update product
-app.put('/api/products/:id', (req, res) => {
+app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, price, unit, emoji, image, available } = req.body;
     
-    const data = loadProducts();
-    const productIndex = data.products.findIndex(p => p.id === parseInt(id));
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (price !== undefined) update.price = parseInt(price);
+    if (unit !== undefined) update.unit = unit;
+    if (emoji !== undefined) update.emoji = emoji;
+    if (image !== undefined) update.image = image;
+    if (available !== undefined) update.available = available;
     
-    if (productIndex === -1) {
+    const product = await Product.findOneAndUpdate(
+      { productId: parseInt(id) },
+      { $set: update },
+      { new: true }
+    );
+    
+    if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    // Update fields
-    if (name !== undefined) data.products[productIndex].name = name;
-    if (price !== undefined) data.products[productIndex].price = parseInt(price);
-    if (unit !== undefined) data.products[productIndex].unit = unit;
-    if (emoji !== undefined) data.products[productIndex].emoji = emoji;
-    if (image !== undefined) data.products[productIndex].image = image;
-    if (available !== undefined) data.products[productIndex].available = available;
-    
-    saveProducts(data);
-    res.json(data.products[productIndex]);
+    res.json({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      unit: product.unit,
+      emoji: product.emoji,
+      image: product.image,
+      available: product.available
+    });
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
 
-// DELETE product
-app.delete('/api/products/:id', (req, res) => {
+app.delete('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = loadProducts();
-    const productIndex = data.products.findIndex(p => p.id === parseInt(id));
+    const result = await Product.findOneAndDelete({ productId: parseInt(id) });
     
-    if (productIndex === -1) {
+    if (!result) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    
-    data.products.splice(productIndex, 1);
-    saveProducts(data);
     
     res.json({ success: true, message: 'Product deleted' });
   } catch (error) {
@@ -188,29 +417,34 @@ app.delete('/api/products/:id', (req, res) => {
   }
 });
 
-// PUT toggle product availability (quick toggle)
-app.put('/api/products/:id/toggle', (req, res) => {
+app.put('/api/products/:id/toggle', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = loadProducts();
-    const productIndex = data.products.findIndex(p => p.id === parseInt(id));
+    const product = await Product.findOne({ productId: parseInt(id) });
     
-    if (productIndex === -1) {
+    if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    data.products[productIndex].available = !data.products[productIndex].available;
-    saveProducts(data);
+    product.available = !product.available;
+    await product.save();
     
-    res.json(data.products[productIndex]);
+    res.json({
+      id: product.productId,
+      name: product.name,
+      price: product.price,
+      unit: product.unit,
+      emoji: product.emoji,
+      image: product.image,
+      available: product.available
+    });
   } catch (error) {
     console.error('Error toggling product:', error);
     res.status(500).json({ error: 'Failed to toggle product' });
   }
 });
 
-// PUT bulk toggle availability
-app.put('/api/products/bulk/toggle', (req, res) => {
+app.put('/api/products/bulk/toggle', async (req, res) => {
   try {
     const { ids, available } = req.body;
     
@@ -218,15 +452,11 @@ app.put('/api/products/bulk/toggle', (req, res) => {
       return res.status(400).json({ error: 'IDs array is required' });
     }
     
-    const data = loadProducts();
-    ids.forEach(id => {
-      const product = data.products.find(p => p.id === parseInt(id));
-      if (product) {
-        product.available = available;
-      }
-    });
+    await Product.updateMany(
+      { productId: { $in: ids.map(id => parseInt(id)) } },
+      { $set: { available } }
+    );
     
-    saveProducts(data);
     res.json({ success: true, updated: ids.length });
   } catch (error) {
     console.error('Error bulk toggling products:', error);
@@ -238,29 +468,30 @@ app.put('/api/products/bulk/toggle', (req, res) => {
 // ORDER ENDPOINTS
 // =====================
 
-// GET all orders (sorted by latest first)
-app.get('/api/orders', (req, res) => {
+app.get('/api/orders', async (req, res) => {
   try {
-    const orders = db.getAllOrders();
-    res.json(orders);
+    const orders = await Order.find().sort({ createdAt: -1 });
+    res.json(orders.map(o => ({ ...o.toObject(), id: o.orderId })));
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
 
-// POST new order
-app.post('/api/orders', (req, res) => {
+app.post('/api/orders', async (req, res) => {
   try {
-    const { customerName, flatNumber, items, totalAmount, collectDate, collectTime, notes } = req.body;
+    const { customerName, flatNumber, phone, items, totalAmount, collectDate, collectTime, notes } = req.body;
     
     if (!customerName || !flatNumber || !items || items.length === 0) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
-    const order = db.createOrder({
+    const orderId = await getNextId('orderId');
+    const order = new Order({
+      orderId,
       customerName,
       flatNumber,
+      phone: phone || '',
       items,
       totalAmount,
       status: 'NEW',
@@ -270,15 +501,15 @@ app.post('/api/orders', (req, res) => {
       notes: notes || ''
     });
     
-    res.status(201).json(order);
+    await order.save();
+    res.status(201).json({ ...order.toObject(), id: order.orderId });
   } catch (error) {
     console.error('Error creating order:', error);
     res.status(500).json({ error: 'Failed to create order' });
   }
 });
 
-// PUT update order (status/paymentStatus)
-app.put('/api/orders/:id', (req, res) => {
+app.put('/api/orders/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, paymentStatus, cancelReason, cancelledAt, adminFeedback, feedbackAt } = req.body;
@@ -291,17 +522,17 @@ app.put('/api/orders/:id', (req, res) => {
     if (adminFeedback !== undefined) updates.adminFeedback = adminFeedback;
     if (feedbackAt) updates.feedbackAt = feedbackAt;
     
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'No fields to update' });
-    }
-    
-    const order = db.updateOrder(id, updates);
+    const order = await Order.findOneAndUpdate(
+      { orderId: parseInt(id) },
+      { $set: updates },
+      { new: true }
+    );
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
     
-    res.json(order);
+    res.json({ ...order.toObject(), id: order.orderId });
   } catch (error) {
     console.error('Error updating order:', error);
     res.status(500).json({ error: 'Failed to update order' });
@@ -312,8 +543,7 @@ app.put('/api/orders/:id', (req, res) => {
 // USER ENDPOINTS
 // =====================
 
-// Register new user
-app.post('/api/users/register', (req, res) => {
+app.post('/api/users/register', async (req, res) => {
   try {
     const { name, mobile } = req.body;
     
@@ -321,39 +551,31 @@ app.post('/api/users/register', (req, res) => {
       return res.status(400).json({ error: 'Name and mobile are required' });
     }
     
-    // Validate mobile (10 digits)
     if (!/^\d{10}$/.test(mobile)) {
       return res.status(400).json({ error: 'Mobile must be 10 digits' });
     }
     
-    const userData = loadUsers();
-    
-    // Check if mobile already exists
-    const existingUser = userData.users.find(u => u.mobile === mobile);
+    const existingUser = await User.findOne({ mobile });
     if (existingUser) {
       return res.status(400).json({ error: 'Mobile number already registered. Please login.' });
     }
     
-    const newUser = {
-      id: userData.nextUserId,
+    const userId = await getNextId('userId');
+    const user = new User({
+      userId,
       name: name.trim(),
-      mobile,
-      createdAt: new Date().toISOString()
-    };
+      mobile
+    });
     
-    userData.users.push(newUser);
-    userData.nextUserId++;
-    saveUsers(userData);
-    
-    res.status(201).json({ success: true, user: newUser });
+    await user.save();
+    res.status(201).json({ success: true, user: user.toObject() });
   } catch (error) {
     console.error('Error registering user:', error);
     res.status(500).json({ error: 'Failed to register user' });
   }
 });
 
-// Login user (by mobile)
-app.post('/api/users/login', (req, res) => {
+app.post('/api/users/login', async (req, res) => {
   try {
     const { mobile } = req.body;
     
@@ -361,52 +583,76 @@ app.post('/api/users/login', (req, res) => {
       return res.status(400).json({ error: 'Mobile number is required' });
     }
     
-    const userData = loadUsers();
-    const user = userData.users.find(u => u.mobile === mobile);
-    
+    const user = await User.findOne({ mobile });
     if (!user) {
       return res.status(404).json({ error: 'User not found. Please register first.' });
     }
     
-    res.json({ success: true, user });
+    res.json({ success: true, user: user.toObject() });
   } catch (error) {
     console.error('Error logging in:', error);
     res.status(500).json({ error: 'Failed to login' });
   }
 });
 
-// Get user by mobile
-app.get('/api/users/:mobile', (req, res) => {
+app.get('/api/users', async (req, res) => {
   try {
-    const { mobile } = req.params;
-    const userData = loadUsers();
-    const user = userData.users.find(u => u.mobile === mobile);
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    res.json(user);
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    res.status(500).json({ error: 'Failed to fetch user' });
-  }
-});
-
-// Get all users (Admin only)
-app.get('/api/users', (req, res) => {
-  try {
-    const userData = loadUsers();
-    res.json(userData.users);
+    const users = await User.find().sort({ createdAt: -1 });
+    res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 
+// =====================
+// EXPORT ENDPOINTS
+// =====================
+
+app.get('/api/export/daily', async (req, res) => {
+  try {
+    const date = req.query.date ? new Date(req.query.date) : new Date();
+    const { filename, filepath } = await generateDailySheet(date);
+    res.download(filepath, filename);
+  } catch (error) {
+    console.error('Error exporting daily sheet:', error);
+    res.status(500).json({ error: 'Failed to export daily sheet' });
+  }
+});
+
+app.get('/api/export/consolidated', async (req, res) => {
+  try {
+    const { filename, filepath } = await generateConsolidatedSheet();
+    res.download(filepath, filename);
+  } catch (error) {
+    console.error('Error exporting consolidated sheet:', error);
+    res.status(500).json({ error: 'Failed to export consolidated sheet' });
+  }
+});
+
+app.get('/api/export/list', (req, res) => {
+  try {
+    const files = fs.readdirSync(EXPORTS_DIR)
+      .filter(f => f.endsWith('.xlsx'))
+      .map(f => ({
+        name: f,
+        url: `/exports/${f}`,
+        created: fs.statSync(path.join(EXPORTS_DIR, f)).mtime
+      }))
+      .sort((a, b) => b.created - a.created);
+    res.json(files);
+  } catch (error) {
+    res.json([]);
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ 
+    status: 'ok', 
+    app: 'Swaad Sutra',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' 
+  });
 });
 
 // Serve frontend for all other routes (SPA support)

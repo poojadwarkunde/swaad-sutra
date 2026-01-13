@@ -562,7 +562,17 @@ function AdminPage() {
       {activeTab === 'orders' && (
         <>
           <section className="summary-section">
-            <h2>📊 Today's Summary</h2>
+            <div className="summary-header">
+              <h2>📊 Today's Summary</h2>
+              <div className="export-buttons">
+                <a href="/api/export/daily" className="btn btn-export" download>
+                  📥 Daily Report
+                </a>
+                <a href="/api/export/consolidated" className="btn btn-export" download>
+                  📊 All Orders
+                </a>
+              </div>
+            </div>
             <div className="summary-grid">
               <div className="summary-card">
                 <div className="summary-value">{todayOrders.length}</div>
