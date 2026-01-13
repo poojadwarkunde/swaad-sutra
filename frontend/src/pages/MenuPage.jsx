@@ -320,12 +320,21 @@ function MenuPage() {
             <span className="cart-count">{totalItems} item{totalItems > 1 ? 's' : ''}</span>
             <span className="cart-total">₹{totalAmount}</span>
           </div>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowCheckout(true)}
-          >
-            Place Order →
-          </button>
+          {user ? (
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowCheckout(true)}
+            >
+              Place Order →
+            </button>
+          ) : (
+            <button 
+              className="btn btn-primary login-required-btn"
+              onClick={() => setShowAuth(true)}
+            >
+              🔐 Login to Order →
+            </button>
+          )}
         </div>
       )}
 

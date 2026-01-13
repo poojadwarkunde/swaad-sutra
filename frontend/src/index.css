@@ -196,6 +196,17 @@ body {
   text-decoration: underline;
 }
 
+/* Login Required Button */
+.login-required-btn {
+  background: linear-gradient(135deg, var(--color-warning), var(--color-primary)) !important;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(243, 156, 18, 0); }
+}
+
 .close-btn {
   position: absolute;
   top: 15px;
