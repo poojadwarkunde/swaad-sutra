@@ -12,6 +12,7 @@ const SORT_OPTIONS = [
 
 function AdminPage() {
   const [orders, setOrders] = useState([])
+  const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('orders')
@@ -33,6 +34,15 @@ function AdminPage() {
   
   // Notification modal state
   const [notifyModal, setNotifyModal] = useState({ show: false, order: null })
+  
+  // Product management state
+  const [productModal, setProductModal] = useState({ show: false, product: null, isNew: false })
+  const [productForm, setProductForm] = useState({
+    name: '', price: 0, unit: 'pc', emoji: '🍽️', image: '', available: true
+  })
+  const [savingProduct, setSavingProduct] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
+  const [showUnavailable, setShowUnavailable] = useState(true)
 
   const fetchOrders = async () => {
     try {
@@ -49,8 +59,20 @@ function AdminPage() {
     }
   }
 
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/products?includeHidden=true')
+      if (!response.ok) throw new Error('Failed to fetch products')
+      const data = await response.json()
+      setProducts(data)
+    } catch (err) {
+      console.error('Failed to load products:', err)
+    }
+  }
+
   useEffect(() => {
     fetchOrders()
+    fetchProducts()
     const interval = setInterval(fetchOrders, 30000)
     return () => clearInterval(interval)
   }, [])
@@ -104,8 +126,110 @@ function AdminPage() {
     }
   }
 
+  // Product management functions
+  const toggleProductAvailability = async (product) => {
+    try {
+      const response = await fetch(`/api/products/${product.id}/toggle`, {
+        method: 'PUT'
+      })
+      if (!response.ok) throw new Error('Failed to toggle')
+      await fetchProducts()
+    } catch (err) {
+      alert('Failed to toggle availability')
+      console.error(err)
+    }
+  }
+
+  const openProductEdit = (product) => {
+    setProductForm({
+      name: product.name,
+      price: product.price,
+      unit: product.unit || 'pc',
+      emoji: product.emoji || '🍽️',
+      image: product.image || '',
+      available: product.available !== false
+    })
+    setProductModal({ show: true, product, isNew: false })
+  }
+
+  const openAddProduct = () => {
+    setProductForm({
+      name: '',
+      price: 0,
+      unit: 'pc',
+      emoji: '🍽️',
+      image: '',
+      available: true
+    })
+    setProductModal({ show: true, product: null, isNew: true })
+  }
+
+  const handleSaveProduct = async () => {
+    if (!productForm.name.trim()) {
+      alert('Product name is required')
+      return
+    }
+    
+    setSavingProduct(true)
+    try {
+      if (productModal.isNew) {
+        const response = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productForm)
+        })
+        if (!response.ok) throw new Error('Failed to add product')
+      } else {
+        const response = await fetch(`/api/products/${productModal.product.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productForm)
+        })
+        if (!response.ok) throw new Error('Failed to update product')
+      }
+      
+      await fetchProducts()
+      setProductModal({ show: false, product: null, isNew: false })
+    } catch (err) {
+      alert('Failed to save product: ' + err.message)
+      console.error(err)
+    } finally {
+      setSavingProduct(false)
+    }
+  }
+
+  const handleDeleteProduct = async (product) => {
+    if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return
+    
+    try {
+      const response = await fetch(`/api/products/${product.id}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error('Failed to delete')
+      await fetchProducts()
+    } catch (err) {
+      alert('Failed to delete product')
+      console.error(err)
+    }
+  }
+
+  const toggleAllProducts = async (available) => {
+    const ids = products.map(p => p.id)
+    try {
+      const response = await fetch('/api/products/bulk/toggle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, available })
+      })
+      if (!response.ok) throw new Error('Failed to bulk toggle')
+      await fetchProducts()
+    } catch (err) {
+      alert('Failed to update products')
+      console.error(err)
+    }
+  }
+
   const sendWhatsAppMessage = (order, message) => {
-    // For Swaad Sutra, we might not have phone. Use a placeholder
     const phone = order.phone || '9999999999'
     const phoneClean = phone.startsWith('+') ? phone : `+91${phone}`
     const encodedMessage = encodeURIComponent(message)
@@ -142,15 +266,12 @@ function AdminPage() {
     if (statusFilter !== 'ALL') {
       filtered = filtered.filter(o => o.status === statusFilter)
     }
-    
     if (paymentFilter !== 'ALL') {
       filtered = filtered.filter(o => o.paymentStatus === paymentFilter)
     }
-    
     if (dateFilter) {
       filtered = filtered.filter(o => o.createdAt.startsWith(dateFilter))
     }
-    
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(o => 
@@ -188,6 +309,21 @@ function AdminPage() {
     return getFilteredOrders().filter(o => o.status === status)
   }
 
+  // Filter products
+  const getFilteredProducts = () => {
+    let filtered = [...products]
+    
+    if (!showUnavailable) {
+      filtered = filtered.filter(p => p.available !== false)
+    }
+    if (productSearch.trim()) {
+      const query = productSearch.toLowerCase()
+      filtered = filtered.filter(p => p.name.toLowerCase().includes(query))
+    }
+    
+    return filtered
+  }
+
   const today = new Date().toISOString().split('T')[0]
   const todayOrders = orders.filter(o => o.createdAt.startsWith(today))
   
@@ -200,6 +336,7 @@ function AdminPage() {
 
   const todayRevenue = todayOrders.filter(o => o.status !== 'CANCELLED').reduce((sum, o) => sum + o.totalAmount, 0)
   const paidAmount = todayOrders.filter(o => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.totalAmount, 0)
+  const availableCount = products.filter(p => p.available !== false).length
 
   const formatDateTime = (isoString) => {
     const date = new Date(isoString)
@@ -233,6 +370,7 @@ function AdminPage() {
   }
 
   const filteredOrders = getFilteredOrders()
+  const filteredProducts = getFilteredProducts()
 
   const renderOrderCard = (order) => (
     <div key={order.id} className={`order-card ${getStatusColor(order.status)}`}>
@@ -347,7 +485,7 @@ function AdminPage() {
           <h1>🍽️ Swaad Sutra Admin</h1>
           <p>Kitchen Dashboard</p>
         </div>
-        <button className="btn btn-secondary refresh-btn" onClick={fetchOrders}>↻ Refresh</button>
+        <button className="btn btn-secondary refresh-btn" onClick={() => { fetchOrders(); fetchProducts(); }}>↻ Refresh</button>
       </header>
 
       {/* Tabs */}
@@ -365,10 +503,16 @@ function AdminPage() {
           📊 By Status
         </button>
         <button 
+          className={`tab-btn ${activeTab === 'menu' ? 'active' : ''}`}
+          onClick={() => setActiveTab('menu')}
+        >
+          🍽️ Menu ({availableCount}/{products.length})
+        </button>
+        <button 
           className={`tab-btn ${activeTab === 'kitchen' ? 'active' : ''}`}
           onClick={() => setActiveTab('kitchen')}
         >
-          🍳 Kitchen View
+          🍳 Kitchen
         </button>
       </div>
 
@@ -490,6 +634,84 @@ function AdminPage() {
         </section>
       )}
 
+      {/* Menu Management Tab */}
+      {activeTab === 'menu' && (
+        <section className="menu-management">
+          <div className="menu-header">
+            <h2>🍽️ Menu Management</h2>
+            <div className="menu-actions">
+              <button className="btn btn-primary" onClick={openAddProduct}>
+                ➕ Add Item
+              </button>
+              <button className="btn btn-success" onClick={() => toggleAllProducts(true)}>
+                ✅ Show All
+              </button>
+              <button className="btn btn-secondary" onClick={() => toggleAllProducts(false)}>
+                🚫 Hide All
+              </button>
+            </div>
+          </div>
+
+          <div className="menu-filters">
+            <input
+              type="text"
+              placeholder="🔍 Search items..."
+              value={productSearch}
+              onChange={e => setProductSearch(e.target.value)}
+              className="filter-input"
+            />
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={showUnavailable}
+                onChange={e => setShowUnavailable(e.target.checked)}
+              />
+              Show Hidden Items
+            </label>
+          </div>
+
+          <div className="menu-stats">
+            <span className="stat-badge available">✅ {availableCount} Available</span>
+            <span className="stat-badge unavailable">🚫 {products.length - availableCount} Hidden</span>
+          </div>
+
+          <div className="menu-grid-admin">
+            {filteredProducts.map(product => (
+              <div key={product.id} className={`menu-item-card ${!product.available ? 'hidden-item' : ''}`}>
+                <div className="item-toggle">
+                  <button 
+                    className={`toggle-btn ${product.available ? 'on' : 'off'}`}
+                    onClick={() => toggleProductAvailability(product)}
+                    title={product.available ? 'Click to hide' : 'Click to show'}
+                  >
+                    {product.available ? '✅' : '🚫'}
+                  </button>
+                </div>
+                <div className="item-image">
+                  <span className="item-emoji">{product.emoji}</span>
+                </div>
+                <div className="item-details">
+                  <h4>{product.name}</h4>
+                  <p className="item-price">₹{product.price}/{product.unit}</p>
+                </div>
+                <div className="item-actions">
+                  <button className="btn-sm btn-edit" onClick={() => openProductEdit(product)}>
+                    ✏️ Edit
+                  </button>
+                  <button className="btn-sm btn-delete" onClick={() => handleDeleteProduct(product)}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {filteredProducts.length === 0 && (
+            <div className="no-orders">No menu items found</div>
+          )}
+        </section>
+      )}
+
       {/* Kitchen View */}
       {activeTab === 'kitchen' && (
         <section className="kitchen-section">
@@ -605,6 +827,100 @@ function AdminPage() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Product Edit Modal */}
+      {productModal.show && (
+        <div className="modal-overlay" onClick={() => setProductModal({ show: false, product: null, isNew: false })}>
+          <div className="modal product-modal" onClick={e => e.stopPropagation()}>
+            <h2>{productModal.isNew ? '➕ Add Menu Item' : '✏️ Edit Menu Item'}</h2>
+            
+            <div className="form-group">
+              <label>Item Name *</label>
+              <input
+                type="text"
+                value={productForm.name}
+                onChange={e => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Paneer Paratha"
+                className="form-input"
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Price (₹) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={productForm.price}
+                  onChange={e => setProductForm(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }))}
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Unit</label>
+                <input
+                  type="text"
+                  value={productForm.unit}
+                  onChange={e => setProductForm(prev => ({ ...prev, unit: e.target.value }))}
+                  placeholder="pc, Plate, Bowl..."
+                  className="form-input"
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Emoji</label>
+                <input
+                  type="text"
+                  value={productForm.emoji}
+                  onChange={e => setProductForm(prev => ({ ...prev, emoji: e.target.value }))}
+                  placeholder="🍽️"
+                  className="form-input"
+                  maxLength={4}
+                />
+              </div>
+              <div className="form-group">
+                <label>Image Path</label>
+                <input
+                  type="text"
+                  value={productForm.image}
+                  onChange={e => setProductForm(prev => ({ ...prev, image: e.target.value }))}
+                  placeholder="/images/item.jpg"
+                  className="form-input"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={productForm.available}
+                  onChange={e => setProductForm(prev => ({ ...prev, available: e.target.checked }))}
+                />
+                Available Today
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setProductModal({ show: false, product: null, isNew: false })}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSaveProduct}
+                disabled={savingProduct}
+              >
+                {savingProduct ? 'Saving...' : 'Save Item'}
+              </button>
+            </div>
           </div>
         </div>
       )}

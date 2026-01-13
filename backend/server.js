@@ -7,9 +7,55 @@ const db = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Users storage
+// Storage files
 const USERS_FILE = path.join(__dirname, 'users.json');
+const PRODUCTS_FILE = path.join(__dirname, 'products.json');
 
+// Default menu items
+const DEFAULT_PRODUCTS = [
+  { id: 1, name: 'Wheat Chapati', price: 15, unit: 'pc', emoji: '🫓', image: '/images/Chapati.avif', available: true },
+  { id: 2, name: 'Puran Poli', price: 25, unit: 'pc', emoji: '🥞', image: '/images/Puran Poli.jpeg', available: true },
+  { id: 3, name: 'Jawar Bhakari', price: 20, unit: 'pc', emoji: '🫓', image: '/images/jawar-bhakari.webp', available: true },
+  { id: 4, name: 'Bajara Bhakari', price: 20, unit: 'pc', emoji: '🫓', image: '/images/jawar-bhakari.webp', available: true },
+  { id: 5, name: 'Kalnyachi Bhakari', price: 25, unit: 'pc', emoji: '🫓', image: '/images/jawar-bhakari.webp', available: true },
+  { id: 6, name: 'Methi Paratha', price: 25, unit: 'pc', emoji: '🥙', image: '/images/Methi_Paratha.webp', available: true },
+  { id: 7, name: 'Kothimbir Vadi', price: 100, unit: '12pc', emoji: '🌿', image: '/images/kothimbir-vadi.jpg', available: true },
+  { id: 8, name: 'Idli Chutney', price: 60, unit: '4pc', emoji: '⚪', image: '/images/Idli-chutney.jpg', available: true },
+  { id: 9, name: 'Medu Vada Chutney', price: 60, unit: '4pc', emoji: '🍩', image: '/images/Medu-Vada.jpg', available: true },
+  { id: 10, name: 'Pohe', price: 30, unit: 'Plate', emoji: '🍚', image: '/images/pohe.webp', available: true },
+  { id: 11, name: 'Upma', price: 30, unit: 'Plate', emoji: '🍲', image: '/images/upma.jpg', available: true },
+  { id: 12, name: 'Sabudana Khichadi', price: 50, unit: 'Plate', emoji: '🥣', image: '/images/sabudana-khichdi.jpg', available: true },
+  { id: 13, name: 'Appe Chutney', price: 60, unit: '5pc', emoji: '🔵', image: '/images/appe-chutney.webp', available: true },
+  { id: 14, name: 'Til Poli', price: 30, unit: 'pc', emoji: '🥮', image: '/images/2-til-gul-poli-Maharashtrian-gulachi-poli-makar-sankrant-special-ladoo-festive-Indian-dessert-puran-poli-viral-video-recipe-trending-rustic-tadka-vegetarian-snacks-lunch-dinner-lohori-1.png', available: true },
+  { id: 15, name: 'Sabudana Vada', price: 60, unit: '4pc', emoji: '🥔', image: '/images/sabudana-vada.webp', available: true },
+  { id: 16, name: 'Vermicelli Kheer', price: 50, unit: 'Bowl', emoji: '🍮', image: '/images/Seviyan-Kheer.jpg', available: true },
+  { id: 17, name: 'Onion Pakoda (Kanda Bhaje)', price: 60, unit: 'Plate', emoji: '🧅', image: '/images/Onion-Pakoda.webp', available: true },
+];
+
+// Products storage
+function loadProducts() {
+  try {
+    if (fs.existsSync(PRODUCTS_FILE)) {
+      const data = fs.readFileSync(PRODUCTS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error loading products:', err);
+  }
+  return { products: DEFAULT_PRODUCTS, nextId: 18 };
+}
+
+function saveProducts(data) {
+  fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(data, null, 2));
+}
+
+// Initialize products file if it doesn't exist
+if (!fs.existsSync(PRODUCTS_FILE)) {
+  saveProducts({ products: DEFAULT_PRODUCTS, nextId: 18 });
+  console.log('Created products.json file');
+}
+
+// Users storage
 function loadUsers() {
   try {
     if (fs.existsSync(USERS_FILE)) {
@@ -37,6 +83,160 @@ app.use(express.json());
 
 // Serve static frontend files in production
 app.use(express.static(path.join(__dirname, 'public')));
+
+// =====================
+// PRODUCT/MENU ENDPOINTS
+// =====================
+
+// GET all products (menu items)
+app.get('/api/products', (req, res) => {
+  try {
+    const { includeHidden } = req.query;
+    const data = loadProducts();
+    let products = data.products;
+    
+    // Filter out unavailable products for customers
+    if (includeHidden !== 'true') {
+      products = products.filter(p => p.available !== false);
+    }
+    
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// POST add new product
+app.post('/api/products', (req, res) => {
+  try {
+    const { name, price, unit, emoji, image } = req.body;
+    
+    if (!name || price === undefined) {
+      return res.status(400).json({ error: 'Name and price are required' });
+    }
+    
+    const data = loadProducts();
+    const newProduct = {
+      id: data.nextId,
+      name: name.trim(),
+      price: parseInt(price) || 0,
+      unit: unit || 'pc',
+      emoji: emoji || '🍽️',
+      image: image || '/images/placeholder.jpg',
+      available: true
+    };
+    
+    data.products.push(newProduct);
+    data.nextId++;
+    saveProducts(data);
+    
+    res.status(201).json(newProduct);
+  } catch (error) {
+    console.error('Error adding product:', error);
+    res.status(500).json({ error: 'Failed to add product' });
+  }
+});
+
+// PUT update product
+app.put('/api/products/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, price, unit, emoji, image, available } = req.body;
+    
+    const data = loadProducts();
+    const productIndex = data.products.findIndex(p => p.id === parseInt(id));
+    
+    if (productIndex === -1) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Update fields
+    if (name !== undefined) data.products[productIndex].name = name;
+    if (price !== undefined) data.products[productIndex].price = parseInt(price);
+    if (unit !== undefined) data.products[productIndex].unit = unit;
+    if (emoji !== undefined) data.products[productIndex].emoji = emoji;
+    if (image !== undefined) data.products[productIndex].image = image;
+    if (available !== undefined) data.products[productIndex].available = available;
+    
+    saveProducts(data);
+    res.json(data.products[productIndex]);
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
+// DELETE product
+app.delete('/api/products/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = loadProducts();
+    const productIndex = data.products.findIndex(p => p.id === parseInt(id));
+    
+    if (productIndex === -1) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    data.products.splice(productIndex, 1);
+    saveProducts(data);
+    
+    res.json({ success: true, message: 'Product deleted' });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
+// PUT toggle product availability (quick toggle)
+app.put('/api/products/:id/toggle', (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = loadProducts();
+    const productIndex = data.products.findIndex(p => p.id === parseInt(id));
+    
+    if (productIndex === -1) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    data.products[productIndex].available = !data.products[productIndex].available;
+    saveProducts(data);
+    
+    res.json(data.products[productIndex]);
+  } catch (error) {
+    console.error('Error toggling product:', error);
+    res.status(500).json({ error: 'Failed to toggle product' });
+  }
+});
+
+// PUT bulk toggle availability
+app.put('/api/products/bulk/toggle', (req, res) => {
+  try {
+    const { ids, available } = req.body;
+    
+    if (!Array.isArray(ids)) {
+      return res.status(400).json({ error: 'IDs array is required' });
+    }
+    
+    const data = loadProducts();
+    ids.forEach(id => {
+      const product = data.products.find(p => p.id === parseInt(id));
+      if (product) {
+        product.available = available;
+      }
+    });
+    
+    saveProducts(data);
+    res.json({ success: true, updated: ids.length });
+  } catch (error) {
+    console.error('Error bulk toggling products:', error);
+    res.status(500).json({ error: 'Failed to bulk toggle products' });
+  }
+});
+
+// =====================
+// ORDER ENDPOINTS
+// =====================
 
 // GET all orders (sorted by latest first)
 app.get('/api/orders', (req, res) => {

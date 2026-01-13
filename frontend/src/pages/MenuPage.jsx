@@ -1,26 +1,8 @@
 import { useState, useEffect } from 'react'
 
-const MENU_ITEMS = [
-  { id: 1, name: 'Wheat Chapati', price: 15, unit: 'pc', emoji: '🫓', image: '/images/Chapati.avif' },
-  { id: 2, name: 'Puran Poli', price: 25, unit: 'pc', emoji: '🥞', image: '/images/Puran Poli.jpeg' },
-  { id: 3, name: 'Jawar Bhakari', price: 20, unit: 'pc', emoji: '🫓', image: '/images/jawar-bhakari.webp' },
-  { id: 4, name: 'Bajara Bhakari', price: 20, unit: 'pc', emoji: '🫓', image: '/images/jawar-bhakari.webp' },
-  { id: 5, name: 'Kalnyachi Bhakari', price: 25, unit: 'pc', emoji: '🫓', image: '/images/jawar-bhakari.webp' },
-  { id: 6, name: 'Methi Paratha', price: 25, unit: 'pc', emoji: '🥙', image: '/images/Methi_Paratha.webp' },
-  { id: 7, name: 'Kothimbir Vadi', price: 100, unit: '12pc', emoji: '🌿', image: '/images/kothimbir-vadi.jpg' },
-  { id: 8, name: 'Idli Chutney', price: 60, unit: '4pc', emoji: '⚪', image: '/images/Idli-chutney.jpg' },
-  { id: 9, name: 'Medu Vada Chutney', price: 60, unit: '4pc', emoji: '🍩', image: '/images/Medu-Vada.jpg' },
-  { id: 10, name: 'Pohe', price: 30, unit: 'Plate', emoji: '🍚', image: '/images/pohe.webp' },
-  { id: 11, name: 'Upma', price: 30, unit: 'Plate', emoji: '🍲', image: '/images/upma.jpg' },
-  { id: 12, name: 'Sabudana Khichadi', price: 50, unit: 'Plate', emoji: '🥣', image: '/images/sabudana-khichdi.jpg' },
-  { id: 13, name: 'Appe Chutney', price: 60, unit: '5pc', emoji: '🔵', image: '/images/appe-chutney.webp' },
-  { id: 14, name: 'Til Poli', price: 30, unit: 'pc', emoji: '🥮', image: '/images/2-til-gul-poli-Maharashtrian-gulachi-poli-makar-sankrant-special-ladoo-festive-Indian-dessert-puran-poli-viral-video-recipe-trending-rustic-tadka-vegetarian-snacks-lunch-dinner-lohori-1.png' },
-  { id: 15, name: 'Sabudana Vada', price: 60, unit: '4pc', emoji: '🥔', image: '/images/sabudana-vada.webp' },
-  { id: 16, name: 'Vermicelli Kheer', price: 50, unit: 'Bowl', emoji: '🍮', image: '/images/Seviyan-Kheer.jpg' },
-  { id: 17, name: 'Onion Pakoda (Kanda Bhaje)', price: 60, unit: 'Plate', emoji: '🧅', image: '/images/Onion-Pakoda.webp' },
-]
-
 function MenuPage() {
+  const [menuItems, setMenuItems] = useState([])
+  const [loading, setLoading] = useState(true)
   const [cart, setCart] = useState({})
   const [showCheckout, setShowCheckout] = useState(false)
   const [customerName, setCustomerName] = useState('')
@@ -35,13 +17,28 @@ function MenuPage() {
   // User authentication state
   const [user, setUser] = useState(null)
   const [showAuth, setShowAuth] = useState(false)
-  const [authMode, setAuthMode] = useState('login') // 'login' or 'register'
+  const [authMode, setAuthMode] = useState('login')
   const [authName, setAuthName] = useState('')
   const [authMobile, setAuthMobile] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
+
+  // Fetch menu items from API
+  const fetchMenuItems = async () => {
+    try {
+      const response = await fetch('/api/products')
+      if (response.ok) {
+        const data = await response.json()
+        setMenuItems(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch menu:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
   
-  // Load user from localStorage on mount
+  // Load user from localStorage and fetch menu on mount
   useEffect(() => {
     const savedUser = localStorage.getItem('swaadSutraUser')
     if (savedUser) {
@@ -49,6 +46,7 @@ function MenuPage() {
       setUser(userData)
       setCustomerName(userData.name)
     }
+    fetchMenuItems()
   }, [])
 
   // Authentication handlers
@@ -150,7 +148,7 @@ function MenuPage() {
     }
   }
 
-  const cartItems = MENU_ITEMS.filter(item => cart[item.id] > 0).map(item => ({
+  const cartItems = menuItems.filter(item => cart[item.id] > 0).map(item => ({
     ...item,
     qty: cart[item.id],
     subtotal: item.price * cart[item.id]
@@ -187,7 +185,6 @@ function MenuPage() {
       setOrderSuccess(true)
       setCart({})
       setShowCheckout(false)
-      // Keep user info if logged in
       if (!user) {
         setCustomerName('')
       }
@@ -214,6 +211,14 @@ function MenuPage() {
       minute: '2-digit',
       hour12: true
     })
+  }
+
+  if (loading) {
+    return (
+      <div className="container">
+        <div className="loading">Loading menu...</div>
+      </div>
+    )
   }
 
   if (orderSuccess) {
@@ -266,52 +271,56 @@ function MenuPage() {
 
       <section className="menu-section">
         <h2>Today's Menu</h2>
-        <div className="menu-grid">
-          {MENU_ITEMS.map(item => (
-            <div key={item.id} className="menu-card">
-              <div className="menu-card-left">
-                <div className="menu-image-wrapper">
-                  <img 
-                    src={item.image} 
-                    alt={item.name}
-                    className="menu-image"
-                    onError={(e) => {
-                      e.target.style.display = 'none'
-                      e.target.nextSibling.style.display = 'flex'
-                    }}
-                  />
-                  <span className="menu-emoji-fallback" style={{display: 'none'}}>{item.emoji}</span>
+        {menuItems.length === 0 ? (
+          <div className="no-menu">No items available today. Please check back later!</div>
+        ) : (
+          <div className="menu-grid">
+            {menuItems.map(item => (
+              <div key={item.id} className="menu-card">
+                <div className="menu-card-left">
+                  <div className="menu-image-wrapper">
+                    <img 
+                      src={item.image} 
+                      alt={item.name}
+                      className="menu-image"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        e.target.nextSibling.style.display = 'flex'
+                      }}
+                    />
+                    <span className="menu-emoji-fallback" style={{display: 'none'}}>{item.emoji}</span>
+                  </div>
+                  <div className="menu-info">
+                    <span className="menu-name">{item.name}</span>
+                    <span className="menu-price">₹{item.price}<span className="menu-unit">/{item.unit}</span></span>
+                  </div>
                 </div>
-                <div className="menu-info">
-                  <span className="menu-name">{item.name}</span>
-                  <span className="menu-price">₹{item.price}<span className="menu-unit">/{item.unit}</span></span>
+                <div className="qty-controls">
+                  <button 
+                    className="qty-btn"
+                    onClick={() => updateQuantity(item.id, -1)}
+                    disabled={!cart[item.id]}
+                  >
+                    −
+                  </button>
+                  <span 
+                    className="qty-value qty-clickable"
+                    onClick={() => handleQuantityClick(item.id)}
+                    title="Tap to enter quantity"
+                  >
+                    {cart[item.id] || 0}
+                  </span>
+                  <button 
+                    className="qty-btn qty-btn-add"
+                    onClick={() => updateQuantity(item.id, 1)}
+                  >
+                    +
+                  </button>
                 </div>
               </div>
-              <div className="qty-controls">
-                <button 
-                  className="qty-btn"
-                  onClick={() => updateQuantity(item.id, -1)}
-                  disabled={!cart[item.id]}
-                >
-                  −
-                </button>
-                <span 
-                  className="qty-value qty-clickable"
-                  onClick={() => handleQuantityClick(item.id)}
-                  title="Tap to enter quantity"
-                >
-                  {cart[item.id] || 0}
-                </span>
-                <button 
-                  className="qty-btn qty-btn-add"
-                  onClick={() => updateQuantity(item.id, 1)}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {totalItems > 0 && !showCheckout && (
