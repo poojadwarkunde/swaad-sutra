@@ -220,32 +220,31 @@ function MenuPage() {
     return null
   }
 
-  // Send WhatsApp message for new order
-  const sendOrderConfirmationWhatsApp = (order) => {
-    const phoneFormatted = formatPhoneForWhatsApp(order.phone)
-    if (!phoneFormatted) return
-    
+  // Admin WhatsApp number for order notifications
+  const ADMIN_WHATSAPP = '917722039146'
+
+  // Send WhatsApp message to admin for new order
+  const sendOrderToAdmin = (order) => {
     const itemsList = order.items.map(i => `${i.name} x${i.qty}`).join('\n• ')
-    const collectInfo = order.collectDate ? `📅 Collection: ${order.collectDate} ${order.collectTime || ''}` : ''
+    const collectInfo = order.collectDate ? `\n📅 Collection: ${order.collectDate} ${order.collectTime || ''}` : ''
     
-    const message = `🍽️ *Swaad Sutra - Order Confirmed!*
+    const message = `🔔 *NEW ORDER - Swaad Sutra*
 
 📋 Order #${order.id || order.orderId}
-👤 ${order.customerName}
+👤 Customer: ${order.customerName}
 🏠 Flat: ${order.flatNumber}
-${collectInfo}
+📱 Phone: ${order.phone || 'Not provided'}${collectInfo}
 
 🛍️ *Items:*
 • ${itemsList}
 
 💰 *Total: ₹${order.totalAmount}*
+${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
 
-✅ We've received your order and will start preparing soon!
-
-Thank you for ordering from Swaad Sutra! 🙏`
+⏰ ${new Date().toLocaleString('en-IN')}`
 
     const encodedMessage = encodeURIComponent(message)
-    window.open(`https://wa.me/${phoneFormatted}?text=${encodedMessage}`, '_blank')
+    window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${encodedMessage}`, '_blank')
   }
 
   const handlePlaceOrder = async () => {
@@ -275,19 +274,18 @@ Thank you for ordering from Swaad Sutra! 🙏`
       
       const orderData = await response.json()
 
-      // Send WhatsApp confirmation if phone provided
-      if (phone.trim()) {
-        sendOrderConfirmationWhatsApp({
-          ...orderData,
-          customerName: customerName.trim(),
-          flatNumber: flatNumber.trim(),
-          phone: phone.trim(),
-          items: cartItems.map(({ name, qty, unit, price }) => ({ name, qty, unit, price })),
-          totalAmount,
-          collectDate,
-          collectTime
-        })
-      }
+      // Send WhatsApp notification to admin with order details
+      sendOrderToAdmin({
+        ...orderData,
+        customerName: customerName.trim(),
+        flatNumber: flatNumber.trim(),
+        phone: phone.trim(),
+        items: cartItems.map(({ name, qty, unit, price }) => ({ name, qty, unit, price })),
+        totalAmount,
+        collectDate,
+        collectTime,
+        notes: notes.trim()
+      })
 
       setOrderTime(new Date())
       setOrderSuccess(true)
