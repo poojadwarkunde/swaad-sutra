@@ -1979,3 +1979,102 @@ body {
   width: 100%;
   margin-top: 10px;
 }
+
+/* Image Zoom Styles */
+.menu-image-wrapper.zoomable {
+  cursor: zoom-in;
+  position: relative;
+}
+
+.menu-image-wrapper.zoomable:hover .zoom-icon {
+  opacity: 1;
+}
+
+.zoom-icon {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .zoom-icon {
+    opacity: 0.7;
+  }
+}
+
+.zoom-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+.zoom-modal {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.zoom-close-btn {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.zoom-close-btn:hover {
+  background: #f3f4f6;
+}
+
+.zoom-image {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.zoom-emoji-fallback {
+  font-size: 8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  padding: 40px;
+  border-radius: var(--radius-lg);
+}
+
+.zoom-title {
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 16px;
+  text-align: center;
+}
