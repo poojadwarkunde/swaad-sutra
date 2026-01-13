@@ -1063,10 +1063,15 @@ If you have questions, please contact us.`
               <div className="form-group">
                 <label>Price (₹) *</label>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={productForm.price}
-                  onChange={e => setProductForm(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }))}
+                  onChange={e => {
+                    const cleanValue = e.target.value.replace(/[^0-9]/g, '')
+                    setProductForm(prev => ({ ...prev, price: cleanValue === '' ? 0 : parseInt(cleanValue, 10) }))
+                  }}
+                  onWheel={(e) => e.target.blur()}
                   className="form-input"
                 />
               </div>
