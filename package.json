@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "description": "Society Home Food Ordering - Swaad Sutra",
   "engines": {
-    "node": "18.x"
+    "node": "20.x"
   },
   "scripts": {
-    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "install:all": "cd backend && npm install --registry https://registry.npmjs.org/ && cd ../frontend && npm install --registry https://registry.npmjs.org/",
     "dev": "echo 'Run backend and frontend separately - see README'",
-    "build": "npm run build:frontend && npm run build:copy && npm run build:backend",
-    "build:frontend": "cd frontend && npm install && npm run build",
+    "build": "npm config set registry https://registry.npmjs.org/ && npm run build:frontend && npm run build:copy && npm run build:backend",
+    "build:frontend": "cd frontend && npm install --registry https://registry.npmjs.org/ && npm run build",
     "build:copy": "mkdir -p backend/public && cp -r frontend/dist/* backend/public/",
-    "build:backend": "cd backend && npm install",
+    "build:backend": "cd backend && npm install --registry https://registry.npmjs.org/",
     "start": "cd backend && node server.js"
   }
 }

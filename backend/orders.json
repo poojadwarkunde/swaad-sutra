@@ -1,4 +1,45 @@
 {
-  "orders": [],
-  "nextId": 1
+  "orders": [
+    {
+      "id": 1,
+      "customerName": "fgh",
+      "flatNumber": "467",
+      "items": [
+        {
+          "name": "Wheat Chapati",
+          "qty": 5,
+          "unit": "pc",
+          "price": 15
+        }
+      ],
+      "totalAmount": 75,
+      "status": "DELIVERED",
+      "paymentStatus": "PAID",
+      "collectDate": "2026-01-10",
+      "collectTime": "22:00",
+      "notes": "",
+      "createdAt": "2026-01-09T17:30:54.256Z"
+    },
+    {
+      "id": 2,
+      "customerName": "jkhgf",
+      "flatNumber": "fyughj",
+      "items": [
+        {
+          "name": "Wheat Chapati",
+          "qty": 4,
+          "unit": "pc",
+          "price": 15
+        }
+      ],
+      "totalAmount": 60,
+      "status": "NEW",
+      "paymentStatus": "PENDING",
+      "collectDate": "2026-01-11",
+      "collectTime": "09:39",
+      "notes": "",
+      "createdAt": "2026-01-10T03:08:58.672Z"
+    }
+  ],
+  "nextId": 3
 }
