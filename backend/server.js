@@ -5,12 +5,18 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 const XLSX = require('xlsx');
 const cron = require('node-cron');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://swaadsutra:SwaadSutra2026%21@cluster0.ucxzf4e.mongodb.net/swaadsutra?retryWrites=true&w=majority';
+
+// GitHub Configuration for auto-push Excel reports
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const GITHUB_REPO = 'poojadwarkunde/swaad-sutra';
+const GITHUB_BRANCH = 'main';
 
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ Connected to MongoDB'))
@@ -144,6 +150,88 @@ function formatDate(date) {
 function formatDateTime(date) {
   const d = new Date(date);
   return `${formatDate(date)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+// GitHub API: Upload file to repository
+async function uploadToGitHub(filepath, filename, folder = 'reports') {
+  if (!GITHUB_TOKEN) {
+    console.log('⚠️ GitHub token not configured, skipping upload');
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(filepath);
+    const base64Content = content.toString('base64');
+    const githubPath = `${folder}/${filename}`;
+
+    // Check if file exists (to get SHA for update)
+    let sha = null;
+    try {
+      const checkResponse = await fetch(
+        `https://api.github.com/repos/${GITHUB_REPO}/contents/${githubPath}?ref=${GITHUB_BRANCH}`,
+        {
+          headers: {
+            'Authorization': `token ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        }
+      );
+      if (checkResponse.ok) {
+        const existingFile = await checkResponse.json();
+        sha = existingFile.sha;
+      }
+    } catch (e) {
+      // File doesn't exist, that's fine
+    }
+
+    const body = {
+      message: `📊 Update ${filename} - ${new Date().toISOString()}`,
+      content: base64Content,
+      branch: GITHUB_BRANCH
+    };
+    if (sha) body.sha = sha;
+
+    const response = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/contents/${githubPath}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      }
+    );
+
+    if (response.ok) {
+      console.log(`✅ Uploaded to GitHub: ${githubPath}`);
+      return githubPath;
+    } else {
+      const error = await response.text();
+      console.error('❌ GitHub upload failed:', error);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ GitHub upload error:', error);
+    return null;
+  }
+}
+
+// Generate and upload reports to GitHub
+async function generateAndUploadReports() {
+  try {
+    const daily = await generateDailySheet();
+    const consolidated = await generateConsolidatedSheet();
+    
+    // Upload to GitHub
+    await uploadToGitHub(daily.filepath, daily.filename);
+    await uploadToGitHub(consolidated.filepath, consolidated.filename);
+    
+    console.log('📊 Reports generated and uploaded to GitHub');
+  } catch (error) {
+    console.error('Error generating reports:', error);
+  }
 }
 
 async function generateDailySheet(date = new Date()) {
@@ -502,6 +590,10 @@ app.post('/api/orders', async (req, res) => {
     });
     
     await order.save();
+    
+    // Auto-generate and upload reports to GitHub
+    generateAndUploadReports().catch(err => console.error('Report generation error:', err));
+    
     res.status(201).json({ ...order.toObject(), id: order.orderId });
   } catch (error) {
     console.error('Error creating order:', error);
@@ -531,6 +623,9 @@ app.put('/api/orders/:id', async (req, res) => {
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
+    
+    // Auto-generate and upload reports to GitHub on status/payment update
+    generateAndUploadReports().catch(err => console.error('Report generation error:', err));
     
     res.json({ ...order.toObject(), id: order.orderId });
   } catch (error) {
