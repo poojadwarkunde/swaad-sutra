@@ -26,6 +26,12 @@ function saveUsers(data) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
 }
 
+// Initialize users file if it doesn't exist
+if (!fs.existsSync(USERS_FILE)) {
+  saveUsers({ users: [], nextUserId: 1 });
+  console.log('Created users.json file');
+}
+
 app.use(cors());
 app.use(express.json());
 
