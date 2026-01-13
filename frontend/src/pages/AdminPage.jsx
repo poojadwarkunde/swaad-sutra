@@ -43,6 +43,15 @@ function AdminPage() {
   const [savingProduct, setSavingProduct] = useState(false)
   const [productSearch, setProductSearch] = useState('')
   const [showUnavailable, setShowUnavailable] = useState(true)
+  
+  // Section collapse state
+  const [collapsedSections, setCollapsedSections] = useState({
+    completed: true // Auto-collapse completed orders
+  })
+
+  const toggleSection = (section) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }))
+  }
 
   const fetchOrders = async () => {
     try {
@@ -614,23 +623,111 @@ function AdminPage() {
         </>
       )}
 
-      {/* Status Tab */}
+      {/* Status Tab - Organized Sections */}
       {activeTab === 'status' && (
         <section className="status-sections">
-          {STATUS_OPTIONS.map(status => {
-            const statusOrders = getOrdersByStatus(status)
-            if (statusOrders.length === 0) return null
-            return (
-              <div key={status} className={`status-section ${getStatusColor(status)}`}>
-                <h2 className="status-section-title">
-                  {getStatusEmoji(status)} {status} ({statusOrders.length})
-                </h2>
-                <div className="orders-list">
-                  {statusOrders.map(renderOrderCard)}
+          {/* New Orders */}
+          {(() => {
+            const newOrders = orders.filter(o => o.status === 'NEW').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            return newOrders.length > 0 && (
+              <div className="status-section status-new">
+                <div className="section-header" onClick={() => toggleSection('new')}>
+                  <h2 className="status-section-title">
+                    🆕 New Orders ({newOrders.length})
+                  </h2>
+                  <span className="collapse-icon">{collapsedSections.new ? '▶' : '▼'}</span>
                 </div>
+                {!collapsedSections.new && (
+                  <div className="orders-list">
+                    {newOrders.map(renderOrderCard)}
+                  </div>
+                )}
               </div>
             )
-          })}
+          })()}
+
+          {/* In Progress (Cooking + Ready) */}
+          {(() => {
+            const inProgressOrders = orders.filter(o => o.status === 'COOKING' || o.status === 'READY').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            return inProgressOrders.length > 0 && (
+              <div className="status-section status-cooking">
+                <div className="section-header" onClick={() => toggleSection('inProgress')}>
+                  <h2 className="status-section-title">
+                    🍳 In Progress ({inProgressOrders.length})
+                  </h2>
+                  <span className="collapse-icon">{collapsedSections.inProgress ? '▶' : '▼'}</span>
+                </div>
+                {!collapsedSections.inProgress && (
+                  <div className="orders-list">
+                    {inProgressOrders.map(renderOrderCard)}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Delivered (Pending Payment) */}
+          {(() => {
+            const deliveredPending = orders.filter(o => o.status === 'DELIVERED' && o.paymentStatus !== 'PAID').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            return deliveredPending.length > 0 && (
+              <div className="status-section status-delivered">
+                <div className="section-header" onClick={() => toggleSection('delivered')}>
+                  <h2 className="status-section-title">
+                    📦 Delivered - Payment Pending ({deliveredPending.length})
+                  </h2>
+                  <span className="collapse-icon">{collapsedSections.delivered ? '▶' : '▼'}</span>
+                </div>
+                {!collapsedSections.delivered && (
+                  <div className="orders-list">
+                    {deliveredPending.map(renderOrderCard)}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Completed (Delivered + Paid) */}
+          {(() => {
+            const completedOrders = orders.filter(o => o.status === 'DELIVERED' && o.paymentStatus === 'PAID').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            return completedOrders.length > 0 && (
+              <div className="status-section status-completed">
+                <div className="section-header clickable" onClick={() => toggleSection('completed')}>
+                  <h2 className="status-section-title">
+                    ✅ Completed ({completedOrders.length})
+                  </h2>
+                  <span className="collapse-icon">{collapsedSections.completed ? '▶' : '▼'}</span>
+                </div>
+                {!collapsedSections.completed && (
+                  <div className="orders-list">
+                    {completedOrders.map(renderOrderCard)}
+                  </div>
+                )}
+                {collapsedSections.completed && (
+                  <p className="collapsed-hint">Click to view {completedOrders.length} completed orders</p>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Cancelled */}
+          {(() => {
+            const cancelledOrders = orders.filter(o => o.status === 'CANCELLED').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            return cancelledOrders.length > 0 && (
+              <div className="status-section status-cancelled">
+                <div className="section-header clickable" onClick={() => toggleSection('cancelled')}>
+                  <h2 className="status-section-title">
+                    ❌ Cancelled ({cancelledOrders.length})
+                  </h2>
+                  <span className="collapse-icon">{collapsedSections.cancelled ? '▶' : '▼'}</span>
+                </div>
+                {!collapsedSections.cancelled && (
+                  <div className="orders-list">
+                    {cancelledOrders.map(renderOrderCard)}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </section>
       )}
 

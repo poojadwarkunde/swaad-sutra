@@ -1087,17 +1087,62 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border-bottom: 2px solid currentColor;
+  user-select: none;
+}
+
+.section-header:hover {
+  opacity: 0.8;
+}
+
 .status-section-title {
   font-size: 1.1rem;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid currentColor;
+  margin: 0;
+}
+
+.collapse-icon {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.collapsed-hint {
+  text-align: center;
+  padding: 12px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: #f5f5f5;
+  border-radius: var(--radius-sm);
+  margin: 0;
+}
+
+.collapsed-hint:hover {
+  background: #eee;
+}
+
+.status-section.status-new .section-header { color: var(--color-warning); border-color: var(--color-warning); }
+.status-section.status-cooking .section-header { color: var(--color-primary); border-color: var(--color-primary); }
+.status-section.status-ready .section-header { color: #10b981; border-color: #10b981; }
+.status-section.status-delivered .section-header { color: var(--color-success); border-color: var(--color-success); }
+.status-section.status-completed .section-header { color: #10b981; border-color: #10b981; }
+.status-section.status-cancelled .section-header { color: #ef4444; border-color: #ef4444; }
+
+.status-section.status-completed {
+  background: #f0fdf4;
 }
 
 .status-section.status-new .status-section-title { color: var(--color-warning); }
 .status-section.status-cooking .status-section-title { color: var(--color-primary); }
 .status-section.status-ready .status-section-title { color: #10b981; }
 .status-section.status-delivered .status-section-title { color: var(--color-success); }
+.status-section.status-completed .status-section-title { color: #10b981; }
 .status-section.status-cancelled .status-section-title { color: #ef4444; }
 
 /* Kitchen View */
