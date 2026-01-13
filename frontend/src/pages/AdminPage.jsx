@@ -238,25 +238,36 @@ function AdminPage() {
     }
   }
 
+  // Format phone for WhatsApp - accepts 10 digit Indian numbers
   const formatPhoneForWhatsApp = (phone) => {
     if (!phone) return null
     // Remove all non-digit characters
-    let cleaned = phone.replace(/\D/g, '')
-    // If starts with 0, remove it
+    let cleaned = phone.toString().replace(/\D/g, '')
+    // Remove leading 0 if present
     if (cleaned.startsWith('0')) cleaned = cleaned.substring(1)
-    // If 10 digits, add India country code
-    if (cleaned.length === 10) cleaned = '91' + cleaned
-    // If already has 91 prefix and is 12 digits, use as is
-    if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned
-    // If 11 digits starting with 91, it's valid
-    if (cleaned.length >= 12) return cleaned
-    return null // Invalid number
+    // Remove +91 or 91 prefix if already present
+    if (cleaned.startsWith('91') && cleaned.length > 10) {
+      cleaned = cleaned.substring(2)
+    }
+    // If we have 10 digits, add 91 prefix
+    if (cleaned.length === 10) {
+      return '91' + cleaned
+    }
+    // If already 12 digits with 91, return as is
+    if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      return cleaned
+    }
+    // For any valid-looking number, just add 91 if needed
+    if (cleaned.length >= 10) {
+      return cleaned.length === 10 ? '91' + cleaned : cleaned
+    }
+    return null
   }
 
   const sendWhatsAppMessage = (order, message) => {
     const phone = formatPhoneForWhatsApp(order.phone)
     if (!phone) {
-      alert('Invalid phone number format. Please check the customer phone number.')
+      console.log('Phone validation failed for:', order.phone)
       return false
     }
     const encodedMessage = encodeURIComponent(message)
