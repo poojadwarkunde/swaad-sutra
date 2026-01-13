@@ -8,6 +8,7 @@ const cron = require('node-cron');
 const https = require('https');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const QRCode = require('qrcode');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,12 +24,17 @@ let whatsappStatus = 'disconnected'; // disconnected, qr_ready, connecting, conn
 function initWhatsApp() {
   console.log('📱 Initializing WhatsApp client...');
   
+  // Get puppeteer executable path
+  const executablePath = puppeteer.executablePath();
+  console.log('📱 Using Chrome at:', executablePath);
+  
   whatsappClient = new Client({
     authStrategy: new LocalAuth({
       dataPath: path.join(__dirname, '.wwebjs_auth')
     }),
     puppeteer: {
       headless: true,
+      executablePath: executablePath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
