@@ -1,188 +1,399 @@
 # 🍽️ Swaad Sutra - Society Home Food Ordering
 
-A simple, production-ready food ordering system for home food businesses operating within a residential society.
+A full-stack web application for ordering homemade food within a residential society. Customers can browse daily menu items, place orders, and collect fresh home-cooked food.
 
-## Features
+---
 
-- **Menu Page** (`/`): Browse items, add to cart, place orders
-- **Admin Dashboard** (`/admin`): View orders, update status, track payments
-- Mobile-first design
-- No login required for customers
-- SQLite database for reliable local storage
+## 📋 Table of Contents
 
-## Tech Stack
+- [Tech Stack](#tech-stack)
+- [Features](#features)
+- [Application Screens](#application-screens)
+- [Database Schema](#database-schema)
+- [API Endpoints](#api-endpoints)
+- [Environment Variables](#environment-variables)
+- [Deployment](#deployment)
 
-- **Frontend**: React 18 + Vite
-- **Backend**: Node.js + Express
-- **Database**: SQLite (via better-sqlite3)
+---
 
-## Quick Start
+## 🛠 Tech Stack
 
-### 1. Install Backend Dependencies
+### Frontend
+| Technology | Purpose |
+|------------|---------|
+| **React 18** | UI Library |
+| **Vite** | Build tool & dev server |
+| **React Router** | Client-side routing |
+| **CSS3** | Styling (custom CSS variables, responsive design) |
 
-```bash
-cd backend
-npm install
+### Backend
+| Technology | Purpose |
+|------------|---------|
+| **Node.js 18+** | Runtime environment |
+| **Express.js** | Web framework |
+| **MongoDB Atlas** | Cloud database |
+| **Mongoose** | MongoDB ODM |
+| **XLSX** | Excel file generation |
+| **node-cron** | Scheduled tasks |
+| **CORS** | Cross-origin resource sharing |
+
+### Deployment
+| Service | Purpose |
+|---------|---------|
+| **Render** | Hosting (backend + frontend) |
+| **MongoDB Atlas** | Database hosting |
+| **GitHub** | Version control + Excel reports storage |
+
+---
+
+## ✨ Features
+
+### Customer Features
+- 🍳 **Daily Menu** - Browse today's available items
+- 🛒 **Shopping Cart** - Add/remove items, adjust quantities
+- 📱 **User Registration/Login** - Mobile number based authentication
+- 📝 **Order Placement** - Select collection date & time
+- 🏠 **Flat-based Delivery** - Order by flat number
+- ✅ **Order Confirmation** - Instant order confirmation
+
+### Admin Features
+- 📊 **Dashboard** - Today's summary (orders, revenue, collected amount)
+- 📋 **Order Management** - View all orders with filters & sorting
+- 🔄 **Status Updates** - NEW → COOKING → READY → DELIVERED
+- 💳 **Payment Tracking** - Mark orders as PAID/PENDING/REFUNDED
+- ❌ **Order Cancellation** - Cancel with reason
+- 💬 **Feedback System** - Add admin feedback to orders
+- 📱 **Customer Notifications** - Send WhatsApp/SMS updates (auto on status change)
+- 🍽️ **Menu Management** - Add/Edit/Delete menu items
+- ✅ **Daily Availability** - Toggle items available today
+- 🚫 **Bulk Actions** - Show All / Hide All items
+- 📥 **Excel Export** - Daily reports & consolidated reports
+- 🔄 **Auto GitHub Sync** - Auto-upload reports to GitHub on order changes
+- 👨‍🍳 **Kitchen View** - Aggregated items to prepare
+
+### Order Status Flow
+```
+NEW → COOKING → READY → DELIVERED
+  ↓
+CANCELLED (with reason)
 ```
 
-### 2. Start Backend Server
-
-```bash
-npm start
+### Payment Status Flow
+```
+PENDING → PAID
+    ↓
+  REFUNDED
 ```
 
-Backend runs on `http://localhost:3001`
+---
 
-### 3. Install Frontend Dependencies (new terminal)
+## 📱 Application Screens
 
-```bash
-cd frontend
-npm install
-```
+### 1. Menu Page (`/`)
+**Purpose:** Customer-facing daily menu and ordering experience
 
-### 4. Start Frontend Dev Server
+**Components:**
+- Header with logo, title "Today's Menu", login button, cart icon
+- Welcome message for logged-in users
+- Menu grid showing available items:
+  - Item emoji
+  - Item image
+  - Item name
+  - Price with unit (per pc, per plate, etc.)
+  - Add to cart button
+  - Quantity controls (when item in cart)
+- Cart sidebar with:
+  - Item list with quantities and units
+  - Total amount
+  - Collection date picker
+  - Collection time picker
+  - Checkout button
+- Checkout form:
+  - Name (auto-filled if logged in)
+  - Flat Number
+  - Mobile Number
+  - Collection Date & Time
+  - Special Instructions
+  - Place Order button
+- Order success confirmation with order details
 
-```bash
-npm run dev
-```
+**Authentication Modal:**
+- Login tab (mobile number)
+- Register tab (name + mobile number)
+- Auto-fill customer details after login
 
-Frontend runs on `http://localhost:5173`
+### 2. Admin Page (`/admin`)
+**Purpose:** Order management, menu management, kitchen operations
 
-## URLs
+**Tabs:**
 
-- **Customer Menu**: http://localhost:5173
-- **Admin Dashboard**: http://localhost:5173/admin
+#### Orders Tab
+- Summary cards (Today's Orders, Total Revenue, Collected Amount)
+- Export buttons (Daily Report, All Orders)
+- Filter & Sort section:
+  - Search (name, flat, item)
+  - Status filter
+  - Payment filter
+  - Date filter
+  - Sort options (Newest, Oldest, Amount, Collection Time)
+- Order cards showing:
+  - Order ID, Customer name, Flat number
+  - Phone number
+  - Items list with quantities
+  - Collection date & time
+  - Notes, Cancel reason, Feedback
+  - Total amount
+  - Status dropdown
+  - Payment toggle button
+  - Action buttons (Cancel, Feedback, Notify)
 
-## API Endpoints
+#### By Status Tab
+- Collapsible sections:
+  - 🆕 New Orders
+  - 🍳 In Progress (Cooking + Ready)
+  - 📦 Delivered - Payment Pending
+  - ✅ Completed (Delivered + Paid) - Auto-collapsed
+  - ❌ Cancelled
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/orders` | Get all orders (sorted by latest) |
-| POST | `/api/orders` | Create new order |
-| PUT | `/api/orders/:id` | Update order status/payment |
-| GET | `/api/health` | Health check |
+#### Menu Tab
+- Header with Add Item, Show All, Hide All buttons
+- Search filter
+- Toggle to show/hide unavailable items
+- Menu item cards showing:
+  - Emoji
+  - Image
+  - Name
+  - Price & Unit
+  - Availability toggle (green ✓ / red ✗)
+  - Edit button
+  - Delete button
 
-## Order Object Schema
+**Modals:**
+- Cancel Order Modal (with reason input)
+- Feedback Modal (with feedback text)
+- Notify Modal (WhatsApp/SMS preview)
+- Edit Item Modal (name, price, unit, emoji, image, availability)
+- Add Item Modal
 
-```json
+---
+
+## 🗄️ Database Schema
+
+### Orders Collection
+```javascript
 {
-  "id": 1,
-  "customerName": "John",
-  "flatNumber": "A-101",
-  "items": [{"name": "Puran Poli", "qty": 2}],
-  "totalAmount": 120,
-  "status": "NEW",
-  "paymentStatus": "PENDING",
-  "notes": "",
-  "createdAt": "2024-01-15T10:30:00.000Z"
+  orderId: Number,          // Auto-increment ID
+  customerName: String,
+  flatNumber: String,
+  phone: String,
+  items: [{
+    id: Number,
+    name: String,
+    price: Number,
+    qty: Number,
+    unit: String
+  }],
+  totalAmount: Number,
+  status: String,           // NEW, COOKING, READY, DELIVERED, CANCELLED
+  paymentStatus: String,    // PENDING, PAID, REFUNDED
+  collectDate: String,      // YYYY-MM-DD
+  collectTime: String,      // HH:MM
+  notes: String,
+  cancelReason: String,
+  cancelledAt: Date,
+  adminFeedback: String,
+  feedbackAt: Date,
+  createdAt: Date
 }
 ```
 
-## Order & Payment Status
-
-**Order Status**: `NEW` → `COOKING` → `DELIVERED`
-
-**Payment Status**: `PENDING` → `PAID`
-
-## 🚀 Deploy to Internet (Share with Anyone)
-
-### Option 1: Deploy to Render.com (Recommended - Free)
-
-1. **Push to GitHub:**
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR_USERNAME/swaad-sutra.git
-git push -u origin main
-```
-
-2. **Deploy on Render:**
-   - Go to https://render.com
-   - Sign up (free)
-   - Click "New" → "Web Service"
-   - Connect your GitHub repo
-   - Render will auto-detect settings from `render.yaml`
-   - Click "Create Web Service"
-   - Wait 2-3 minutes for deployment
-
-3. **Get your public URL:**
-   - You'll get a URL like: `https://swaad-sutra.onrender.com`
-   - Share this with your society members!
-
-### Option 2: Deploy to Railway.app
-
-1. Go to https://railway.app
-2. Sign in with GitHub
-3. Click "New Project" → "Deploy from GitHub repo"
-4. Select your repo
-5. Railway will auto-deploy
-
-### Option 3: Local Server with PM2
-
-```bash
-# Build everything
-npm run build
-
-# Install PM2
-npm install -g pm2
-
-# Start server
-cd backend
-pm2 start server.js --name "swaad-sutra"
-```
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | 3001 | Backend server port |
-
-## Customizing Menu
-
-Edit the `MENU_ITEMS` array in `frontend/src/pages/MenuPage.jsx`:
-
+### Products Collection
 ```javascript
-const MENU_ITEMS = [
-  { id: 1, name: 'Wheat Chapati', price: 15, unit: 'pc', emoji: '🫓', image: '/images/wheat-chapati.jpg' },
-  { id: 2, name: 'Puran Poli', price: 25, unit: 'pc', emoji: '🥞', image: '/images/puran-poli.jpg' },
-  // Add more items...
-]
+{
+  productId: Number,
+  name: String,
+  price: Number,
+  unit: String,             // pc, plate, bowl, 4pc, 12pc, etc.
+  emoji: String,
+  image: String,
+  available: Boolean        // Available today
+}
 ```
 
-## Adding Food Images
+### Users Collection
+```javascript
+{
+  userId: Number,
+  name: String,
+  mobile: String,           // Unique, 10 digits
+  createdAt: Date
+}
+```
 
-Place your food item images in `frontend/public/images/` folder.
+### Counters Collection
+```javascript
+{
+  name: String,             // 'orderId', 'userId', 'productId'
+  value: Number
+}
+```
 
-**Naming convention:**
-- `wheat-chapati.jpg`
-- `puran-poli.jpg`
-- `jawar-bhakari.jpg`
-- `bajara-bhakari.jpg`
-- `kalnyachi-bhakari.jpg`
-- `methi-paratha.jpg`
-- `kothimbir-vadi.jpg`
-- `idli-chutney.jpg`
-- `medu-vada.jpg`
-- `pohe.jpg`
-- `upma.jpg`
-- `sabudana-khichadi.jpg`
-- `appe-chutney.jpg`
-- `til-poli.jpg`
-- `sabudana-vada.jpg`
-- `vermicelli-kheer.jpg`
-- `onion-pakoda.jpg`
+---
 
-**Supported formats:** JPG, PNG, WebP
+## 🔌 API Endpoints
 
-If an image is not found, an emoji fallback will be displayed.
+### Products (Menu)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/products` | Get available menu items |
+| GET | `/api/products?includeHidden=true` | Get all items (admin) |
+| POST | `/api/products` | Add new menu item |
+| PUT | `/api/products/:id` | Update menu item |
+| DELETE | `/api/products/:id` | Delete menu item |
+| PUT | `/api/products/:id/toggle` | Toggle availability |
+| PUT | `/api/products/bulk/toggle` | Bulk toggle availability |
 
-## Database
+### Orders
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/orders` | Get all orders |
+| POST | `/api/orders` | Create new order |
+| PUT | `/api/orders/:id` | Update order status/payment |
 
-Orders are stored in `backend/orders.db` (SQLite file). 
+### Users
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/users/register` | Register new user |
+| POST | `/api/users/login` | Login user |
+| GET | `/api/users` | Get all users (admin) |
 
-To reset all orders, simply delete this file and restart the server.
+### Export
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/export/daily` | Download daily Excel report |
+| GET | `/api/export/daily?date=2026-01-13` | Download specific date report |
+| GET | `/api/export/consolidated` | Download all orders report |
+| GET | `/api/export/list` | List all exported files |
 
-## License
+### Health
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Health check + DB status |
 
-MIT - Free to use for your home food business!
+---
+
+## 🔐 Environment Variables
+
+### Required for Render
+```env
+MONGODB_URI=mongodb+srv://swaadsutra:password@cluster0.xxx.mongodb.net/swaadsutra?retryWrites=true&w=majority
+GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+```
+
+### Optional (defaults provided)
+```env
+PORT=3001
+```
+
+---
+
+## 🚀 Deployment
+
+### Render Configuration
+- **Build Command:** 
+  ```
+  cd frontend && npm install && npm run build && mkdir -p ../backend/public && cp -r dist/* ../backend/public/ && cd ../backend && npm install
+  ```
+- **Start Command:** `node server.js`
+- **Root Directory:** (leave empty)
+
+### Auto-Generated Reports
+Reports are automatically generated and uploaded to GitHub:
+- On new order creation
+- On order status update
+- On payment status update
+- Daily at 11:59 PM
+
+**Report Files:**
+- `reports/SwaadSutra_Daily_YYYY-MM-DD.xlsx`
+- `reports/SwaadSutra_Consolidated_YYYY-MM-DD.xlsx`
+
+**Excel Report Contents:**
+| Sheet | Data |
+|-------|------|
+| Daily Orders | All orders for the day |
+| Summary | Order counts, revenue, payment stats |
+| Items Breakdown | Quantity ordered per item |
+| Daily Summary | Day-wise aggregated data |
+
+---
+
+## 📁 Project Structure
+
+```
+swaad-sutra/
+├── frontend/
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── MenuPage.jsx      # Customer menu page
+│   │   │   └── AdminPage.jsx     # Admin dashboard
+│   │   ├── App.jsx               # Router setup
+│   │   ├── main.jsx              # Entry point
+│   │   └── index.css             # Global styles
+│   ├── public/
+│   │   └── images/               # Food item images
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+├── backend/
+│   ├── server.js                 # Express server + all APIs
+│   ├── exports/                  # Generated Excel files
+│   └── package.json
+├── reports/                      # Auto-synced Excel reports
+├── package.json                  # Root build scripts
+├── render.yaml                   # Render deployment config
+└── README.md
+```
+
+---
+
+## 🍳 Default Menu Items
+
+| Item | Price | Unit |
+|------|-------|------|
+| Wheat Chapati | ₹15 | pc |
+| Puran Poli | ₹25 | pc |
+| Jawar Bhakari | ₹20 | pc |
+| Bajara Bhakari | ₹20 | pc |
+| Kalnyachi Bhakari | ₹25 | pc |
+| Methi Paratha | ₹25 | pc |
+| Kothimbir Vadi | ₹100 | 12pc |
+| Idli Chutney | ₹60 | 4pc |
+| Medu Vada Chutney | ₹60 | 4pc |
+| Pohe | ₹30 | Plate |
+| Upma | ₹30 | Plate |
+| Sabudana Khichadi | ₹50 | Plate |
+| Appe Chutney | ₹60 | 5pc |
+| Til Poli | ₹30 | pc |
+| Sabudana Vada | ₹60 | 4pc |
+| Vermicelli Kheer | ₹50 | Bowl |
+| Onion Pakoda | ₹60 | Plate |
+
+---
+
+## 👥 User Roles
+
+| Role | Access |
+|------|--------|
+| **Customer** | Menu page, place orders, view cart |
+| **Admin** | `/admin` - Full order & menu management |
+
+---
+
+## 📞 Support
+
+For issues or feature requests, contact the development team.
+
+---
+
+**Built with ❤️ for Swaad Sutra - Bringing homemade goodness to your doorstep**
