@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const MENU_ITEMS = [
   { id: 1, name: 'Wheat Chapati', price: 15, unit: 'pc', emoji: '🫓', image: '/images/Chapati.avif' },
@@ -31,6 +31,93 @@ function MenuPage() {
   const [submitting, setSubmitting] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [orderTime, setOrderTime] = useState(null)
+  
+  // User authentication state
+  const [user, setUser] = useState(null)
+  const [showAuth, setShowAuth] = useState(false)
+  const [authMode, setAuthMode] = useState('login') // 'login' or 'register'
+  const [authName, setAuthName] = useState('')
+  const [authMobile, setAuthMobile] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+  
+  // Load user from localStorage on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('swaadSutraUser')
+    if (savedUser) {
+      const userData = JSON.parse(savedUser)
+      setUser(userData)
+      setCustomerName(userData.name)
+    }
+  }, [])
+
+  // Authentication handlers
+  const handleAuth = async () => {
+    setAuthError('')
+    setAuthLoading(true)
+    
+    try {
+      if (authMode === 'register') {
+        if (!authName.trim()) {
+          setAuthError('Please enter your name')
+          setAuthLoading(false)
+          return
+        }
+        if (!/^\d{10}$/.test(authMobile)) {
+          setAuthError('Please enter valid 10-digit mobile number')
+          setAuthLoading(false)
+          return
+        }
+        
+        const response = await fetch('/api/users/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: authName.trim(), mobile: authMobile })
+        })
+        
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Registration failed')
+        
+        setUser(data.user)
+        localStorage.setItem('swaadSutraUser', JSON.stringify(data.user))
+        setCustomerName(data.user.name)
+        setShowAuth(false)
+        setAuthName('')
+        setAuthMobile('')
+      } else {
+        if (!/^\d{10}$/.test(authMobile)) {
+          setAuthError('Please enter valid 10-digit mobile number')
+          setAuthLoading(false)
+          return
+        }
+        
+        const response = await fetch('/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile: authMobile })
+        })
+        
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Login failed')
+        
+        setUser(data.user)
+        localStorage.setItem('swaadSutraUser', JSON.stringify(data.user))
+        setCustomerName(data.user.name)
+        setShowAuth(false)
+        setAuthMobile('')
+      }
+    } catch (err) {
+      setAuthError(err.message)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+  
+  const handleLogout = () => {
+    setUser(null)
+    localStorage.removeItem('swaadSutraUser')
+    setCustomerName('')
+  }
 
   const updateQuantity = (itemId, delta) => {
     setCart(prev => {
@@ -100,7 +187,10 @@ function MenuPage() {
       setOrderSuccess(true)
       setCart({})
       setShowCheckout(false)
-      setCustomerName('')
+      // Keep user info if logged in
+      if (!user) {
+        setCustomerName('')
+      }
       setFlatNumber('')
       setCollectDate('')
       setCollectTime('')
@@ -151,9 +241,27 @@ function MenuPage() {
   return (
     <div className="container">
       <header className="header">
-        <div className="brand-logo">🍽️</div>
-        <h1>Swaad Sutra</h1>
-        <p className="subtitle">Homemade with Love</p>
+        <div className="header-top">
+          <div className="brand-section">
+            <div className="brand-logo">🍽️</div>
+            <div>
+              <h1>Swaad Sutra</h1>
+              <p className="subtitle">Homemade with Love</p>
+            </div>
+          </div>
+          <div className="header-actions">
+            {user ? (
+              <div className="user-info">
+                <span className="user-name">👤 {user.name}</span>
+                <button className="logout-btn" onClick={handleLogout}>Logout</button>
+              </div>
+            ) : (
+              <button className="login-btn" onClick={() => setShowAuth(true)}>
+                👤 Login
+              </button>
+            )}
+          </div>
+        </div>
       </header>
 
       <section className="menu-section">
@@ -305,6 +413,54 @@ function MenuPage() {
               >
                 {submitting ? 'Placing...' : 'Confirm Order'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal */}
+      {showAuth && (
+        <div className="auth-overlay" onClick={() => setShowAuth(false)}>
+          <div className="auth-modal" onClick={e => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => setShowAuth(false)}>×</button>
+            <h2>{authMode === 'login' ? '👤 Login' : '📝 Register'}</h2>
+            
+            {authError && <div className="auth-error">{authError}</div>}
+            
+            <div className="auth-form">
+              {authMode === 'register' && (
+                <input
+                  type="text"
+                  placeholder="Your Name"
+                  value={authName}
+                  onChange={e => setAuthName(e.target.value)}
+                  className="input"
+                />
+              )}
+              <input
+                type="tel"
+                placeholder="Mobile Number (10 digits)"
+                value={authMobile}
+                onChange={e => setAuthMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                className="input"
+                maxLength={10}
+              />
+              
+              <button 
+                className="btn btn-primary auth-submit"
+                onClick={handleAuth}
+                disabled={authLoading}
+              >
+                {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Register')}
+              </button>
+            </div>
+            
+            <div className="auth-switch">
+              {authMode === 'login' ? (
+                <p>New user? <button onClick={() => { setAuthMode('register'); setAuthError(''); }}>Register here</button></p>
+              ) : (
+                <p>Already registered? <button onClick={() => { setAuthMode('login'); setAuthError(''); }}>Login here</button></p>
+              )}
             </div>
           </div>
         </div>
