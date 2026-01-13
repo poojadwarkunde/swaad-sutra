@@ -636,7 +636,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
                   return (
                     <div key={order.id} className="history-order-card">
                       <div className="history-order-header">
-                        <div className="history-order-id">Order #{order.id}</div>
+                        <div className="history-order-date-title">📅 {order.orderDate}</div>
                         <div 
                           className="history-order-status"
                           style={{ color: statusInfo.color, background: statusInfo.bg }}
@@ -645,8 +645,8 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
                         </div>
                       </div>
                       
-                      <div className="history-order-date">
-                        📅 {order.orderDate} at {order.orderTime}
+                      <div className="history-order-time">
+                        🕐 {order.orderTime}
                       </div>
                       
                       <div className="history-order-items">

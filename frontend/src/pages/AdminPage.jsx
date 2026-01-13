@@ -307,7 +307,6 @@ function AdminPage() {
       case 'NEW':
         return `🍽️ *Swaad Sutra - Order Received!*
 
-📋 Order #${order.id || order.orderId}
 👤 ${order.customerName}
 🏠 Flat: ${order.flatNumber}
 ${collectInfo}
@@ -323,7 +322,6 @@ Thank you for ordering from Swaad Sutra! 🙏`
       case 'COOKING':
         return `🍳 *Swaad Sutra - Order Being Prepared!*
 
-📋 Order #${order.id || order.orderId}
 ${collectInfo}
 
 🛍️ *Items:*
@@ -335,7 +333,6 @@ We'll notify you when it's ready. Thank you! 🙏`
       case 'READY':
         return `✅ *Swaad Sutra - Order READY!*
 
-📋 Order #${order.id || order.orderId}
 🏠 Flat: ${order.flatNumber}
 
 🛍️ *Items:*
@@ -349,15 +346,11 @@ Please collect your fresh homemade food. Thank you! 🙏`
       case 'DELIVERED':
         return `🎉 *Swaad Sutra - Order Delivered!*
 
-📋 Order #${order.id || order.orderId}
-
 ✅ Your order has been delivered!
 
 We hope you enjoy your homemade meal. Thank you for ordering from Swaad Sutra! 🍽️🙏`
       case 'CANCELLED':
         return `❌ *Swaad Sutra - Order Cancelled*
-
-📋 Order #${order.id || order.orderId}
 
 ⚠️ Reason: ${order.cancelReason || 'N/A'}
 
@@ -365,7 +358,6 @@ If you have questions, please contact us.`
       default:
         return `🍽️ *Swaad Sutra - Order Update*
 
-📋 Order #${order.id || order.orderId}
 📊 Status: ${order.status}
 
 🛍️ *Items:*
