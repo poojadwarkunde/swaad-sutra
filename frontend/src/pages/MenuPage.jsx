@@ -23,6 +23,11 @@ function MenuPage() {
   const [authMobile, setAuthMobile] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
+  
+  // Order history state
+  const [showOrderHistory, setShowOrderHistory] = useState(false)
+  const [orderHistory, setOrderHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   // Fetch menu items from API
   const fetchMenuItems = async () => {
@@ -36,6 +41,36 @@ function MenuPage() {
       console.error('Failed to fetch menu:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Fetch order history for logged in user
+  const fetchOrderHistory = async () => {
+    if (!user?.mobile) return
+    
+    setHistoryLoading(true)
+    try {
+      const response = await fetch(`/api/orders/history/${user.mobile}`)
+      if (response.ok) {
+        const data = await response.json()
+        setOrderHistory(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch order history:', err)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  // Get status color and emoji
+  const getStatusInfo = (status) => {
+    switch (status) {
+      case 'NEW': return { color: '#f59e0b', bg: '#fef3c7', emoji: '🆕', text: 'Order Placed' }
+      case 'COOKING': return { color: '#f97316', bg: '#ffedd5', emoji: '🍳', text: 'Being Prepared' }
+      case 'READY': return { color: '#10b981', bg: '#d1fae5', emoji: '✅', text: 'Ready for Pickup' }
+      case 'DELIVERED': return { color: '#22c55e', bg: '#dcfce7', emoji: '🎉', text: 'Delivered' }
+      case 'CANCELLED': return { color: '#ef4444', bg: '#fee2e2', emoji: '❌', text: 'Cancelled' }
+      default: return { color: '#6b7280', bg: '#f3f4f6', emoji: '📋', text: status }
     }
   }
   
@@ -330,10 +365,18 @@ Thank you for ordering from Swaad Sutra! 🙏`
           </div>
           <div className="header-actions">
             {user ? (
-              <div className="user-info">
-                <span className="user-name">👤 {user.name}</span>
-                <button className="logout-btn" onClick={handleLogout}>Logout</button>
-              </div>
+              <>
+                <button 
+                  className="orders-btn"
+                  onClick={() => { setShowOrderHistory(true); fetchOrderHistory(); }}
+                >
+                  📋 My Orders
+                </button>
+                <div className="user-info">
+                  <span className="user-name">👤 {user.name}</span>
+                  <button className="logout-btn" onClick={handleLogout}>Logout</button>
+                </div>
+              </>
             ) : (
               <button className="login-btn" onClick={() => setShowAuth(true)}>
                 👤 Login
@@ -562,6 +605,83 @@ Thank you for ordering from Swaad Sutra! 🙏`
                 <p>Already registered? <button onClick={() => { setAuthMode('login'); setAuthError(''); }}>Login here</button></p>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order History Modal */}
+      {showOrderHistory && (
+        <div className="auth-overlay" onClick={() => setShowOrderHistory(false)}>
+          <div className="order-history-modal" onClick={e => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => setShowOrderHistory(false)}>×</button>
+            <h2>📋 My Orders</h2>
+            
+            {historyLoading ? (
+              <div className="history-loading">Loading your orders...</div>
+            ) : orderHistory.length === 0 ? (
+              <div className="no-orders-history">
+                <span className="no-orders-icon">🛒</span>
+                <p>No orders yet!</p>
+                <p className="no-orders-sub">Your order history will appear here.</p>
+              </div>
+            ) : (
+              <div className="order-history-list">
+                {orderHistory.map(order => {
+                  const statusInfo = getStatusInfo(order.status)
+                  return (
+                    <div key={order.id} className="history-order-card">
+                      <div className="history-order-header">
+                        <div className="history-order-id">Order #{order.id}</div>
+                        <div 
+                          className="history-order-status"
+                          style={{ color: statusInfo.color, background: statusInfo.bg }}
+                        >
+                          {statusInfo.emoji} {statusInfo.text}
+                        </div>
+                      </div>
+                      
+                      <div className="history-order-date">
+                        📅 {order.orderDate} at {order.orderTime}
+                      </div>
+                      
+                      <div className="history-order-items">
+                        {order.items.map((item, idx) => (
+                          <span key={idx} className="history-item-tag">
+                            {item.name} × {item.qty}
+                          </span>
+                        ))}
+                      </div>
+                      
+                      {order.collectDate && (
+                        <div className="history-collect-info">
+                          🕐 Collection: {order.collectDate} {order.collectTime || ''}
+                        </div>
+                      )}
+                      
+                      <div className="history-order-footer">
+                        <span className="history-order-total">₹{order.totalAmount}</span>
+                        <span className={`history-payment-status ${order.paymentStatus === 'PAID' ? 'paid' : 'pending'}`}>
+                          {order.paymentStatus === 'PAID' ? '✓ Paid' : '○ Payment Pending'}
+                        </span>
+                      </div>
+                      
+                      {order.cancelReason && (
+                        <div className="history-cancel-reason">
+                          Reason: {order.cancelReason}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            
+            <button 
+              className="btn btn-secondary history-close-btn"
+              onClick={() => setShowOrderHistory(false)}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

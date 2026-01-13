@@ -793,6 +793,42 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+// Get order history for a customer by phone number
+app.get('/api/orders/history/:phone', async (req, res) => {
+  try {
+    const { phone } = req.params;
+    // Clean phone number - remove non-digits
+    const cleanedPhone = phone.replace(/\D/g, '');
+    
+    // Find orders matching the phone number (last 10 digits)
+    const orders = await Order.find({
+      $or: [
+        { phone: cleanedPhone },
+        { phone: { $regex: cleanedPhone.slice(-10) + '$' } }
+      ]
+    }).sort({ createdAt: -1 });
+    
+    res.json(orders.map(o => ({ 
+      ...o.toObject(), 
+      id: o.orderId,
+      // Format date for display
+      orderDate: new Date(o.createdAt).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      }),
+      orderTime: new Date(o.createdAt).toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+    })));
+  } catch (error) {
+    console.error('Error fetching order history:', error);
+    res.status(500).json({ error: 'Failed to fetch order history' });
+  }
+});
+
 app.post('/api/orders', async (req, res) => {
   try {
     const { customerName, flatNumber, phone, items, totalAmount, collectDate, collectTime, notes } = req.body;
