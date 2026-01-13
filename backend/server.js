@@ -81,11 +81,15 @@ app.post('/api/orders', (req, res) => {
 app.put('/api/orders/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { status, paymentStatus } = req.body;
+    const { status, paymentStatus, cancelReason, cancelledAt, adminFeedback, feedbackAt } = req.body;
     
     const updates = {};
     if (status) updates.status = status;
     if (paymentStatus) updates.paymentStatus = paymentStatus;
+    if (cancelReason !== undefined) updates.cancelReason = cancelReason;
+    if (cancelledAt) updates.cancelledAt = cancelledAt;
+    if (adminFeedback !== undefined) updates.adminFeedback = adminFeedback;
+    if (feedbackAt) updates.feedbackAt = feedbackAt;
     
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
