@@ -238,16 +238,42 @@ function AdminPage() {
     }
   }
 
+  const formatPhoneForWhatsApp = (phone) => {
+    if (!phone) return null
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '')
+    // If starts with 0, remove it
+    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1)
+    // If 10 digits, add India country code
+    if (cleaned.length === 10) cleaned = '91' + cleaned
+    // If already has 91 prefix and is 12 digits, use as is
+    if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned
+    // If 11 digits starting with 91, it's valid
+    if (cleaned.length >= 12) return cleaned
+    return null // Invalid number
+  }
+
   const sendWhatsAppMessage = (order, message) => {
-    const phone = order.phone || '9999999999'
-    const phoneClean = phone.startsWith('+') ? phone : `+91${phone}`
+    const phone = formatPhoneForWhatsApp(order.phone)
+    if (!phone) {
+      alert('Invalid phone number format. Please check the customer phone number.')
+      return false
+    }
     const encodedMessage = encodeURIComponent(message)
-    window.open(`https://wa.me/${phoneClean.replace(/\D/g, '')}?text=${encodedMessage}`, '_blank')
+    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank')
+    return true
   }
 
   const sendSMSMessage = (order, message) => {
-    const phone = order.phone || '9999999999'
+    const phone = order.phone
     window.open(`sms:${phone}?body=${encodeURIComponent(message)}`, '_blank')
+  }
+
+  // Auto-send notification when status changes
+  const sendStatusNotification = (order, newStatus) => {
+    const updatedOrder = { ...order, status: newStatus }
+    const message = getStatusMessage(updatedOrder)
+    sendWhatsAppMessage(updatedOrder, message)
   }
 
   const getStatusMessage = (order) => {
@@ -425,11 +451,16 @@ function AdminPage() {
             <>
               <select
                 value={order.status}
-                onChange={e => {
-                  if (e.target.value === 'CANCELLED') {
+                onChange={async e => {
+                  const newStatus = e.target.value
+                  if (newStatus === 'CANCELLED') {
                     setCancelModal({ show: true, orderId: order.id })
                   } else {
-                    updateOrder(order.id, { status: e.target.value })
+                    const updated = await updateOrder(order.id, { status: newStatus })
+                    if (updated) {
+                      // Auto-send WhatsApp notification
+                      sendStatusNotification(updated, newStatus)
+                    }
                   }
                 }}
                 className={`select-status ${getStatusColor(order.status)}`}
