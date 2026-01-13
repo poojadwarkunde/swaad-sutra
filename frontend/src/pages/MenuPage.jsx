@@ -233,7 +233,6 @@ function MenuPage() {
     
     const message = `🔔 *NEW ORDER - Swaad Sutra*
 
-📋 Order #${order.id || order.orderId}
 👤 Customer: ${order.customerName}
 🏠 Flat: ${order.flatNumber}
 📱 Phone: ${order.phone || 'Not provided'}${collectInfo}
