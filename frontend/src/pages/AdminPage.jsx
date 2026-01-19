@@ -683,17 +683,20 @@ If you have questions, please contact us.`
   }
 
   const today = new Date().toISOString().split('T')[0]
-  const todayOrders = orders.filter(o => o.createdAt.startsWith(today))
+  const todayOrders = orders.filter(o => o.createdAt.startsWith(today) && o.status !== 'CANCELLED')
   
-  const itemTotals = todayOrders.filter(o => o.status !== 'CANCELLED').reduce((acc, order) => {
+  const itemTotals = todayOrders.reduce((acc, order) => {
     order.items.forEach(item => {
       acc[item.name] = (acc[item.name] || 0) + item.qty
     })
     return acc
   }, {})
 
-  const todayRevenue = todayOrders.filter(o => o.status !== 'CANCELLED').reduce((sum, o) => sum + o.totalAmount, 0)
+  const todayRevenue = todayOrders.reduce((sum, o) => sum + o.totalAmount, 0)
   const paidAmount = todayOrders.filter(o => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.totalAmount, 0)
+  
+  // Active orders count (excluding cancelled)
+  const activeOrdersCount = orders.filter(o => o.status !== 'CANCELLED').length
   const availableCount = products.filter(p => p.available !== false).length
 
   const formatDateTime = (isoString) => {
@@ -878,7 +881,7 @@ If you have questions, please contact us.`
           className={`tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
           onClick={() => setActiveTab('orders')}
         >
-          📋 Orders ({orders.length})
+          📋 Orders ({filteredOrders.length}{filteredOrders.length !== activeOrdersCount ? `/${activeOrdersCount}` : ''})
         </button>
         <button 
           className={`tab-btn ${activeTab === 'status' ? 'active' : ''}`}
