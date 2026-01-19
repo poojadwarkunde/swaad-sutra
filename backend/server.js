@@ -781,13 +781,13 @@ app.put('/api/orders/:id', async (req, res) => {
   }
 });
 
-// Add items to existing order (admin feature)
+// Update order items (admin feature) - full replace, add, remove, update qty
 app.put('/api/orders/:id/items', async (req, res) => {
   try {
     const { id } = req.params;
-    const { items } = req.body;
+    const { items, mode } = req.body;
     
-    if (!items || !Array.isArray(items) || items.length === 0) {
+    if (!items || !Array.isArray(items)) {
       return res.status(400).json({ error: 'Items array is required' });
     }
     
@@ -796,42 +796,58 @@ app.put('/api/orders/:id/items', async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
     
-    // Add new items to existing items
-    const existingItems = order.items || [];
-    const newItems = items.map(item => ({
-      id: item.id || Date.now(),
-      name: item.name,
-      price: parseInt(item.price) || 0,
-      qty: parseInt(item.qty) || 1,
-      unit: item.unit || 'pc'
-    }));
+    let finalItems;
     
-    const allItems = [...existingItems, ...newItems];
+    if (mode === 'replace') {
+      // Replace all items with the new list
+      finalItems = items.map(item => ({
+        id: item.id || Date.now(),
+        name: item.name,
+        price: parseInt(item.price) || 0,
+        qty: parseInt(item.qty) || 1,
+        unit: item.unit || 'pc'
+      })).filter(item => item.qty > 0);
+    } else {
+      // Default: add to existing items (backward compatible)
+      const existingItems = order.items || [];
+      const newItems = items.map(item => ({
+        id: item.id || Date.now(),
+        name: item.name,
+        price: parseInt(item.price) || 0,
+        qty: parseInt(item.qty) || 1,
+        unit: item.unit || 'pc'
+      }));
+      finalItems = [...existingItems, ...newItems];
+    }
+    
+    if (finalItems.length === 0) {
+      return res.status(400).json({ error: 'Order must have at least one item' });
+    }
     
     // Recalculate total
-    const newTotal = allItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const newTotal = finalItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
     
     // Update order
     const updatedOrder = await Order.findOneAndUpdate(
       { orderId: parseInt(id) },
       { 
         $set: { 
-          items: allItems, 
+          items: finalItems, 
           totalAmount: newTotal 
         } 
       },
       { new: true }
     );
     
-    console.log(`📋 Order #${updatedOrder.orderId} - Added ${items.length} item(s). New total: ₹${newTotal}`);
+    console.log(`📋 Order #${updatedOrder.orderId} - Items updated. New total: ₹${newTotal}`);
     
     // Auto-generate and upload reports to GitHub
     generateAndUploadReports().catch(err => console.error('Report generation error:', err));
     
     res.json({ ...updatedOrder.toObject(), id: updatedOrder.orderId });
   } catch (error) {
-    console.error('Error adding items to order:', error);
-    res.status(500).json({ error: 'Failed to add items to order' });
+    console.error('Error updating order items:', error);
+    res.status(500).json({ error: 'Failed to update order items' });
   }
 });
 

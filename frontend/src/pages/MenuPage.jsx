@@ -518,22 +518,41 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
           <div className="checkout-modal" onClick={e => e.stopPropagation()}>
             <h2>Complete Your Order</h2>
             
-            <div className="order-summary">
+            <div className="order-summary editable-summary">
+              <p className="edit-hint">Tap +/− to edit or 🗑️ to remove</p>
               {cartItems.map(item => (
-                <div key={item.id} className="summary-item">
-                  <span>{item.emoji} {item.name} × {item.qty}</span>
-                  <span>₹{item.price * item.qty}</span>
+                <div key={item.id} className="summary-item editable">
+                  <div className="summary-item-info">
+                    <span className="item-name">{item.emoji} {item.name}</span>
+                    <span className="item-price-each">₹{item.price}</span>
+                  </div>
+                  <div className="summary-item-controls">
+                    <button className="qty-btn-sm" onClick={() => updateQuantity(item.id, -1)}>−</button>
+                    <span className="qty-display">{item.qty}</span>
+                    <button className="qty-btn-sm" onClick={() => updateQuantity(item.id, 1)}>+</button>
+                    <button className="remove-btn-sm" onClick={() => setCart(prev => { const updated = {...prev}; delete updated[item.id]; return updated; })}>🗑️</button>
+                  </div>
+                  <span className="summary-item-total">₹{item.price * item.qty}</span>
                 </div>
               ))}
               {customItems.map(item => (
-                <div key={item.id} className="summary-item custom-item">
-                  <span>
-                    ✨ {item.name} × {item.qty}
-                    <button className="remove-custom-btn" onClick={() => removeCustomItem(item.id)}>✕</button>
-                  </span>
-                  <span>{item.price > 0 ? `₹${item.price * item.qty}` : 'Price TBD'}</span>
+                <div key={item.id} className="summary-item custom-item editable">
+                  <div className="summary-item-info">
+                    <span className="item-name">✨ {item.name}</span>
+                    <span className="item-price-each">{item.price > 0 ? `₹${item.price}` : 'TBD'}</span>
+                  </div>
+                  <div className="summary-item-controls">
+                    <button className="qty-btn-sm" onClick={() => setCustomItems(prev => prev.map(i => i.id === item.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))}>−</button>
+                    <span className="qty-display">{item.qty}</span>
+                    <button className="qty-btn-sm" onClick={() => setCustomItems(prev => prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i))}>+</button>
+                    <button className="remove-btn-sm" onClick={() => removeCustomItem(item.id)}>🗑️</button>
+                  </div>
+                  <span className="summary-item-total">{item.price > 0 ? `₹${item.price * item.qty}` : 'TBD'}</span>
                 </div>
               ))}
+              {cartItems.length === 0 && customItems.length === 0 && (
+                <p className="empty-cart-warning">Your cart is empty. Add some items first!</p>
+              )}
               <div className="summary-total">
                 <strong>Total</strong>
                 <strong>₹{totalAmount}{customItems.some(i => !i.price) ? '+' : ''}</strong>

@@ -45,12 +45,13 @@ function AdminPage() {
   const [productSearch, setProductSearch] = useState('')
   const [showUnavailable, setShowUnavailable] = useState(true)
   
-  // Add Items to Order modal state
-  const [addItemsModal, setAddItemsModal] = useState({ show: false, order: null })
-  const [selectedItems, setSelectedItems] = useState({})
+  // Edit Order Items modal state
+  const [editItemsModal, setEditItemsModal] = useState({ show: false, order: null })
+  const [orderItems, setOrderItems] = useState([]) // Current order items being edited
+  const [selectedItems, setSelectedItems] = useState({}) // New items to add from menu
   const [customItemsToAdd, setCustomItemsToAdd] = useState([])
   const [newCustomItem, setNewCustomItem] = useState({ name: '', qty: 1, price: '' })
-  const [addingItems, setAddingItems] = useState(false)
+  const [savingItems, setSavingItems] = useState(false)
   
   // Section collapse state
   const [collapsedSections, setCollapsedSections] = useState({
@@ -241,14 +242,29 @@ function AdminPage() {
     }
   }
 
-  // Add items to order functions
-  const openAddItemsModal = (order) => {
+  // Edit order items functions
+  const openEditItemsModal = (order) => {
+    // Initialize with current order items
+    setOrderItems(order.items.map(item => ({ ...item })))
     setSelectedItems({})
     setCustomItemsToAdd([])
     setNewCustomItem({ name: '', qty: 1, price: '' })
-    setAddItemsModal({ show: true, order })
+    setEditItemsModal({ show: true, order })
   }
 
+  // Update quantity of existing order item
+  const updateOrderItemQty = (index, newQty) => {
+    setOrderItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, qty: Math.max(0, newQty) } : item
+    ))
+  }
+
+  // Remove existing order item
+  const removeOrderItem = (index) => {
+    setOrderItems(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Add item from menu
   const handleItemSelect = (product, qty) => {
     if (qty > 0) {
       setSelectedItems(prev => ({ ...prev, [product.id]: { ...product, qty } }))
@@ -261,6 +277,7 @@ function AdminPage() {
     }
   }
 
+  // Add custom item
   const addCustomItemToOrder = () => {
     if (newCustomItem.name.trim() && newCustomItem.qty > 0) {
       setCustomItemsToAdd(prev => [...prev, { ...newCustomItem, id: Date.now() }])
@@ -272,9 +289,18 @@ function AdminPage() {
     setCustomItemsToAdd(prev => prev.filter(item => item.id !== id))
   }
 
-  const handleAddItemsToOrder = async () => {
-    const itemsFromMenu = Object.values(selectedItems).filter(item => item.qty > 0)
-    const itemsFromCustom = customItemsToAdd.map(item => ({
+  // Save all changes to order items
+  const handleSaveOrderItems = async () => {
+    // Combine all items: existing (with updated qty), new from menu, custom
+    const existingItems = orderItems.filter(item => item.qty > 0)
+    const newMenuItems = Object.values(selectedItems).filter(item => item.qty > 0).map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      qty: item.qty,
+      unit: item.unit || 'pc'
+    }))
+    const newCustomItems = customItemsToAdd.map(item => ({
       id: item.id,
       name: item.name,
       price: parseInt(item.price) || 0,
@@ -282,39 +308,41 @@ function AdminPage() {
       unit: 'pc'
     }))
     
-    const allNewItems = [...itemsFromMenu, ...itemsFromCustom]
+    const allItems = [...existingItems, ...newMenuItems, ...newCustomItems]
     
-    if (allNewItems.length === 0) {
-      alert('Please select or add at least one item')
+    if (allItems.length === 0) {
+      alert('Order must have at least one item')
       return
     }
     
-    setAddingItems(true)
+    setSavingItems(true)
     try {
-      const response = await fetch(`/api/orders/${addItemsModal.order.id}/items`, {
+      const response = await fetch(`/api/orders/${editItemsModal.order.id}/items`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: allNewItems })
+        body: JSON.stringify({ items: allItems, mode: 'replace' })
       })
       
-      if (!response.ok) throw new Error('Failed to add items')
+      if (!response.ok) throw new Error('Failed to update items')
       
       const updated = await response.json()
       setOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
-      setAddItemsModal({ show: false, order: null })
-      alert('Items added successfully!')
+      setEditItemsModal({ show: false, order: null })
+      alert('Order updated successfully!')
     } catch (err) {
-      alert('Failed to add items to order')
+      alert('Failed to update order')
       console.error(err)
     } finally {
-      setAddingItems(false)
+      setSavingItems(false)
     }
   }
 
-  const getAddItemsTotal = () => {
+  // Calculate new total
+  const getEditedOrderTotal = () => {
+    const existingTotal = orderItems.reduce((sum, item) => sum + (item.price * item.qty), 0)
     const menuTotal = Object.values(selectedItems).reduce((sum, item) => sum + (item.price * item.qty), 0)
     const customTotal = customItemsToAdd.reduce((sum, item) => sum + ((parseInt(item.price) || 0) * item.qty), 0)
-    return menuTotal + customTotal
+    return existingTotal + menuTotal + customTotal
   }
 
   const toggleAllProducts = async (available) => {
@@ -648,11 +676,11 @@ If you have questions, please contact us.`
           📤 Notify
         </button>
         <button 
-          className="btn-action btn-add-items"
-          onClick={() => openAddItemsModal(order)}
-          title="Add items to order"
+          className="btn-action btn-edit-items"
+          onClick={() => openEditItemsModal(order)}
+          title="Edit order items"
         >
-          ➕ Add Items
+          ✏️ Edit Items
         </button>
         <button 
           className="btn-action btn-feedback"
@@ -1239,25 +1267,59 @@ If you have questions, please contact us.`
         </div>
       )}
 
-      {/* Add Items to Order Modal */}
-      {addItemsModal.show && addItemsModal.order && (
-        <div className="modal-overlay" onClick={() => setAddItemsModal({ show: false, order: null })}>
-          <div className="modal add-items-modal" onClick={e => e.stopPropagation()}>
-            <h2>➕ Add Items to Order #{addItemsModal.order.id}</h2>
-            <p className="modal-subtitle">Customer: {addItemsModal.order.customerName} | Flat: {addItemsModal.order.flatNumber}</p>
+      {/* Edit Order Items Modal */}
+      {editItemsModal.show && editItemsModal.order && (
+        <div className="modal-overlay" onClick={() => setEditItemsModal({ show: false, order: null })}>
+          <div className="modal edit-items-modal" onClick={e => e.stopPropagation()}>
+            <h2>✏️ Edit Order #{editItemsModal.order.id}</h2>
+            <p className="modal-subtitle">Customer: {editItemsModal.order.customerName} | Flat: {editItemsModal.order.flatNumber}</p>
             
-            <div className="current-order-items">
-              <h4>📋 Current Items:</h4>
-              <div className="items-list-compact">
-                {addItemsModal.order.items.map((item, idx) => (
-                  <span key={idx} className="item-tag">{item.name} × {item.qty}</span>
+            {/* Current Order Items - Editable */}
+            <div className="current-order-items editable">
+              <h4>📋 Current Items (tap to edit):</h4>
+              <div className="editable-items-list">
+                {orderItems.map((item, idx) => (
+                  <div key={idx} className={`editable-item ${item.qty === 0 ? 'removed' : ''}`}>
+                    <span className="item-info">
+                      {item.name}
+                      <span className="item-price-small">₹{item.price}</span>
+                    </span>
+                    <div className="item-controls">
+                      <div className="qty-selector">
+                        <button 
+                          className="qty-btn"
+                          onClick={() => updateOrderItemQty(idx, item.qty - 1)}
+                        >
+                          −
+                        </button>
+                        <span className="qty-value">{item.qty}</span>
+                        <button 
+                          className="qty-btn"
+                          onClick={() => updateOrderItemQty(idx, item.qty + 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button 
+                        className="remove-item-btn"
+                        onClick={() => removeOrderItem(idx)}
+                        title="Remove item"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                    <span className="item-subtotal">₹{item.price * item.qty}</span>
+                  </div>
                 ))}
+                {orderItems.length === 0 && (
+                  <p className="no-items-warning">⚠️ No items! Add at least one item below.</p>
+                )}
               </div>
-              <p className="current-total">Current Total: ₹{addItemsModal.order.totalAmount}</p>
             </div>
 
+            {/* Add from Menu */}
             <div className="add-items-section">
-              <h4>🍽️ Select from Menu:</h4>
+              <h4>🍽️ Add from Menu:</h4>
               <div className="menu-items-grid">
                 {products.filter(p => p.available !== false).map(product => (
                   <div key={product.id} className="menu-item-select">
@@ -1283,6 +1345,7 @@ If you have questions, please contact us.`
               </div>
             </div>
 
+            {/* Add Custom Item */}
             <div className="add-custom-section">
               <h4>✨ Add Custom Item:</h4>
               <div className="custom-item-form">
@@ -1324,38 +1387,39 @@ If you have questions, please contact us.`
               )}
             </div>
 
-            <div className="add-items-summary">
+            {/* Summary */}
+            <div className="edit-items-summary">
               <div className="summary-row">
-                <span>Items from menu:</span>
-                <span>{Object.values(selectedItems).filter(i => i.qty > 0).length} items</span>
-              </div>
-              <div className="summary-row">
-                <span>Custom items:</span>
-                <span>{customItemsToAdd.length} items</span>
-              </div>
-              <div className="summary-row total">
-                <span>Additional amount:</span>
-                <span>₹{getAddItemsTotal()}</span>
+                <span>Original Total:</span>
+                <span className="original-total">₹{editItemsModal.order.totalAmount}</span>
               </div>
               <div className="summary-row new-total">
-                <span>New Order Total:</span>
-                <span>₹{addItemsModal.order.totalAmount + getAddItemsTotal()}</span>
+                <span>New Total:</span>
+                <span>₹{getEditedOrderTotal()}</span>
               </div>
+              {getEditedOrderTotal() !== editItemsModal.order.totalAmount && (
+                <div className="summary-row difference">
+                  <span>Difference:</span>
+                  <span className={getEditedOrderTotal() > editItemsModal.order.totalAmount ? 'increase' : 'decrease'}>
+                    {getEditedOrderTotal() > editItemsModal.order.totalAmount ? '+' : ''}₹{getEditedOrderTotal() - editItemsModal.order.totalAmount}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="modal-actions">
               <button 
                 className="btn btn-secondary" 
-                onClick={() => setAddItemsModal({ show: false, order: null })}
+                onClick={() => setEditItemsModal({ show: false, order: null })}
               >
                 Cancel
               </button>
               <button 
                 className="btn btn-primary" 
-                onClick={handleAddItemsToOrder}
-                disabled={addingItems || (Object.keys(selectedItems).length === 0 && customItemsToAdd.length === 0)}
+                onClick={handleSaveOrderItems}
+                disabled={savingItems || (orderItems.filter(i => i.qty > 0).length === 0 && Object.keys(selectedItems).length === 0 && customItemsToAdd.length === 0)}
               >
-                {addingItems ? 'Adding...' : 'Add Items to Order'}
+                {savingItems ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
