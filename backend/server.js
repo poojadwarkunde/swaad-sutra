@@ -781,6 +781,60 @@ app.put('/api/orders/:id', async (req, res) => {
   }
 });
 
+// Add items to existing order (admin feature)
+app.put('/api/orders/:id/items', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Items array is required' });
+    }
+    
+    const order = await Order.findOne({ orderId: parseInt(id) });
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    // Add new items to existing items
+    const existingItems = order.items || [];
+    const newItems = items.map(item => ({
+      id: item.id || Date.now(),
+      name: item.name,
+      price: parseInt(item.price) || 0,
+      qty: parseInt(item.qty) || 1,
+      unit: item.unit || 'pc'
+    }));
+    
+    const allItems = [...existingItems, ...newItems];
+    
+    // Recalculate total
+    const newTotal = allItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    
+    // Update order
+    const updatedOrder = await Order.findOneAndUpdate(
+      { orderId: parseInt(id) },
+      { 
+        $set: { 
+          items: allItems, 
+          totalAmount: newTotal 
+        } 
+      },
+      { new: true }
+    );
+    
+    console.log(`📋 Order #${updatedOrder.orderId} - Added ${items.length} item(s). New total: ₹${newTotal}`);
+    
+    // Auto-generate and upload reports to GitHub
+    generateAndUploadReports().catch(err => console.error('Report generation error:', err));
+    
+    res.json({ ...updatedOrder.toObject(), id: updatedOrder.orderId });
+  } catch (error) {
+    console.error('Error adding items to order:', error);
+    res.status(500).json({ error: 'Failed to add items to order' });
+  }
+});
+
 // =====================
 // USER ENDPOINTS
 // =====================

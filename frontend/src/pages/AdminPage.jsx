@@ -45,6 +45,13 @@ function AdminPage() {
   const [productSearch, setProductSearch] = useState('')
   const [showUnavailable, setShowUnavailable] = useState(true)
   
+  // Add Items to Order modal state
+  const [addItemsModal, setAddItemsModal] = useState({ show: false, order: null })
+  const [selectedItems, setSelectedItems] = useState({})
+  const [customItemsToAdd, setCustomItemsToAdd] = useState([])
+  const [newCustomItem, setNewCustomItem] = useState({ name: '', qty: 1, price: '' })
+  const [addingItems, setAddingItems] = useState(false)
+  
   // Section collapse state
   const [collapsedSections, setCollapsedSections] = useState({
     completed: true // Auto-collapse completed orders
@@ -232,6 +239,82 @@ function AdminPage() {
       alert('Failed to delete product')
       console.error(err)
     }
+  }
+
+  // Add items to order functions
+  const openAddItemsModal = (order) => {
+    setSelectedItems({})
+    setCustomItemsToAdd([])
+    setNewCustomItem({ name: '', qty: 1, price: '' })
+    setAddItemsModal({ show: true, order })
+  }
+
+  const handleItemSelect = (product, qty) => {
+    if (qty > 0) {
+      setSelectedItems(prev => ({ ...prev, [product.id]: { ...product, qty } }))
+    } else {
+      setSelectedItems(prev => {
+        const updated = { ...prev }
+        delete updated[product.id]
+        return updated
+      })
+    }
+  }
+
+  const addCustomItemToOrder = () => {
+    if (newCustomItem.name.trim() && newCustomItem.qty > 0) {
+      setCustomItemsToAdd(prev => [...prev, { ...newCustomItem, id: Date.now() }])
+      setNewCustomItem({ name: '', qty: 1, price: '' })
+    }
+  }
+
+  const removeCustomItemFromOrder = (id) => {
+    setCustomItemsToAdd(prev => prev.filter(item => item.id !== id))
+  }
+
+  const handleAddItemsToOrder = async () => {
+    const itemsFromMenu = Object.values(selectedItems).filter(item => item.qty > 0)
+    const itemsFromCustom = customItemsToAdd.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: parseInt(item.price) || 0,
+      qty: parseInt(item.qty) || 1,
+      unit: 'pc'
+    }))
+    
+    const allNewItems = [...itemsFromMenu, ...itemsFromCustom]
+    
+    if (allNewItems.length === 0) {
+      alert('Please select or add at least one item')
+      return
+    }
+    
+    setAddingItems(true)
+    try {
+      const response = await fetch(`/api/orders/${addItemsModal.order.id}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: allNewItems })
+      })
+      
+      if (!response.ok) throw new Error('Failed to add items')
+      
+      const updated = await response.json()
+      setOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
+      setAddItemsModal({ show: false, order: null })
+      alert('Items added successfully!')
+    } catch (err) {
+      alert('Failed to add items to order')
+      console.error(err)
+    } finally {
+      setAddingItems(false)
+    }
+  }
+
+  const getAddItemsTotal = () => {
+    const menuTotal = Object.values(selectedItems).reduce((sum, item) => sum + (item.price * item.qty), 0)
+    const customTotal = customItemsToAdd.reduce((sum, item) => sum + ((parseInt(item.price) || 0) * item.qty), 0)
+    return menuTotal + customTotal
   }
 
   const toggleAllProducts = async (available) => {
@@ -563,6 +646,13 @@ If you have questions, please contact us.`
           title="Send notification"
         >
           📤 Notify
+        </button>
+        <button 
+          className="btn-action btn-add-items"
+          onClick={() => openAddItemsModal(order)}
+          title="Add items to order"
+        >
+          ➕ Add Items
         </button>
         <button 
           className="btn-action btn-feedback"
@@ -1143,6 +1233,129 @@ If you have questions, please contact us.`
                 disabled={savingProduct}
               >
                 {savingProduct ? 'Saving...' : 'Save Item'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Items to Order Modal */}
+      {addItemsModal.show && addItemsModal.order && (
+        <div className="modal-overlay" onClick={() => setAddItemsModal({ show: false, order: null })}>
+          <div className="modal add-items-modal" onClick={e => e.stopPropagation()}>
+            <h2>➕ Add Items to Order #{addItemsModal.order.id}</h2>
+            <p className="modal-subtitle">Customer: {addItemsModal.order.customerName} | Flat: {addItemsModal.order.flatNumber}</p>
+            
+            <div className="current-order-items">
+              <h4>📋 Current Items:</h4>
+              <div className="items-list-compact">
+                {addItemsModal.order.items.map((item, idx) => (
+                  <span key={idx} className="item-tag">{item.name} × {item.qty}</span>
+                ))}
+              </div>
+              <p className="current-total">Current Total: ₹{addItemsModal.order.totalAmount}</p>
+            </div>
+
+            <div className="add-items-section">
+              <h4>🍽️ Select from Menu:</h4>
+              <div className="menu-items-grid">
+                {products.filter(p => p.available !== false).map(product => (
+                  <div key={product.id} className="menu-item-select">
+                    <span className="item-name">{product.emoji} {product.name}</span>
+                    <span className="item-price">₹{product.price}/{product.unit}</span>
+                    <div className="qty-selector">
+                      <button 
+                        className="qty-btn"
+                        onClick={() => handleItemSelect(product, (selectedItems[product.id]?.qty || 0) - 1)}
+                      >
+                        −
+                      </button>
+                      <span className="qty-value">{selectedItems[product.id]?.qty || 0}</span>
+                      <button 
+                        className="qty-btn"
+                        onClick={() => handleItemSelect(product, (selectedItems[product.id]?.qty || 0) + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="add-custom-section">
+              <h4>✨ Add Custom Item:</h4>
+              <div className="custom-item-form">
+                <input
+                  type="text"
+                  placeholder="Item name"
+                  value={newCustomItem.name}
+                  onChange={e => setNewCustomItem(prev => ({ ...prev, name: e.target.value }))}
+                  className="form-input"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Qty"
+                  value={newCustomItem.qty}
+                  onChange={e => setNewCustomItem(prev => ({ ...prev, qty: parseInt(e.target.value.replace(/\D/g, '')) || 1 }))}
+                  className="form-input qty-input"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Price ₹"
+                  value={newCustomItem.price}
+                  onChange={e => setNewCustomItem(prev => ({ ...prev, price: e.target.value.replace(/\D/g, '') }))}
+                  className="form-input price-input"
+                />
+                <button className="btn btn-secondary" onClick={addCustomItemToOrder}>Add</button>
+              </div>
+              
+              {customItemsToAdd.length > 0 && (
+                <div className="custom-items-list">
+                  {customItemsToAdd.map(item => (
+                    <div key={item.id} className="custom-item-tag">
+                      <span>✨ {item.name} × {item.qty} {item.price ? `(₹${item.price})` : '(TBD)'}</span>
+                      <button className="remove-btn" onClick={() => removeCustomItemFromOrder(item.id)}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="add-items-summary">
+              <div className="summary-row">
+                <span>Items from menu:</span>
+                <span>{Object.values(selectedItems).filter(i => i.qty > 0).length} items</span>
+              </div>
+              <div className="summary-row">
+                <span>Custom items:</span>
+                <span>{customItemsToAdd.length} items</span>
+              </div>
+              <div className="summary-row total">
+                <span>Additional amount:</span>
+                <span>₹{getAddItemsTotal()}</span>
+              </div>
+              <div className="summary-row new-total">
+                <span>New Order Total:</span>
+                <span>₹{addItemsModal.order.totalAmount + getAddItemsTotal()}</span>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setAddItemsModal({ show: false, order: null })}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleAddItemsToOrder}
+                disabled={addingItems || (Object.keys(selectedItems).length === 0 && customItemsToAdd.length === 0)}
+              >
+                {addingItems ? 'Adding...' : 'Add Items to Order'}
               </button>
             </div>
           </div>
