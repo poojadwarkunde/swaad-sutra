@@ -589,6 +589,87 @@ body {
   border-color: var(--color-warning);
 }
 
+/* Custom Item Section */
+.custom-item-section {
+  background: linear-gradient(135deg, #f5f0ff 0%, #ede7f6 100%);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  border: 1px dashed #9575cd;
+  margin-bottom: 16px;
+}
+
+.custom-item-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.custom-name-input {
+  flex: 2;
+  min-width: 120px;
+}
+
+.custom-qty-input {
+  width: 60px;
+  flex: 0 0 60px;
+  text-align: center;
+}
+
+.custom-price-input {
+  width: 80px;
+  flex: 0 0 80px;
+}
+
+.btn-add-custom {
+  background: #7e57c2;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-add-custom:hover:not(:disabled) {
+  background: #5e35b1;
+}
+
+.btn-add-custom:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.custom-item-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #7e57c2;
+  font-style: italic;
+}
+
+.summary-item.custom-item {
+  background: #f3e5f5;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin: 4px 0;
+}
+
+.remove-custom-btn {
+  background: none;
+  border: none;
+  color: #e53935;
+  cursor: pointer;
+  margin-left: 8px;
+  font-size: 0.85rem;
+  padding: 0 4px;
+}
+
+.remove-custom-btn:hover {
+  color: #b71c1c;
+}
+
 /* Collection Date/Time */
 .collect-datetime {
   background: #f0f7ff;

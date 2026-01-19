@@ -31,6 +31,10 @@ function MenuPage() {
   
   // Image zoom state
   const [zoomImage, setZoomImage] = useState(null)
+  
+  // Custom items state
+  const [customItems, setCustomItems] = useState([])
+  const [newCustomItem, setNewCustomItem] = useState({ name: '', qty: 1, price: '' })
 
   // Fetch menu items from API
   const fetchMenuItems = async () => {
@@ -194,8 +198,31 @@ function MenuPage() {
     subtotal: item.price * cart[item.id]
   }))
 
-  const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0)
-  const totalItems = cartItems.reduce((sum, item) => sum + item.qty, 0)
+  const customItemsTotal = customItems.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0)
+  const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0) + customItemsTotal
+  const totalItems = cartItems.reduce((sum, item) => sum + item.qty, 0) + customItems.reduce((sum, item) => sum + item.qty, 0)
+
+  // Custom item functions
+  const addCustomItem = () => {
+    if (!newCustomItem.name.trim()) return
+    setCustomItems(prev => [...prev, { 
+      id: `custom-${Date.now()}`, 
+      name: newCustomItem.name.trim(), 
+      qty: newCustomItem.qty || 1, 
+      price: newCustomItem.price ? parseInt(newCustomItem.price) : 0,
+      isCustom: true
+    }])
+    setNewCustomItem({ name: '', qty: 1, price: '' })
+  }
+
+  const removeCustomItem = (id) => {
+    setCustomItems(prev => prev.filter(item => item.id !== id))
+  }
+
+  const updateCustomItemQty = (id, qty) => {
+    if (qty < 1) return removeCustomItem(id)
+    setCustomItems(prev => prev.map(item => item.id === id ? { ...item, qty } : item))
+  }
 
   // Format phone for WhatsApp - accepts 10 digit Indian numbers
   const formatPhoneForWhatsApp = (phoneNum) => {
@@ -228,10 +255,15 @@ function MenuPage() {
 
   // Send WhatsApp message to admin for new order
   const sendOrderToAdmin = (order) => {
-    const itemsList = order.items.map(i => `${i.name} x${i.qty}`).join('\n• ')
+    const itemsList = order.items.map(i => {
+      const customTag = i.isCustom ? ' ⭐CUSTOM' : ''
+      const priceInfo = i.price ? ` (₹${i.price})` : ' (Price TBD)'
+      return `${i.name} x${i.qty}${i.isCustom ? priceInfo + customTag : ''}`
+    }).join('\n• ')
     const collectInfo = order.collectDate ? `\n📅 Collection: ${order.collectDate} ${order.collectTime || ''}` : ''
+    const hasCustomItems = order.items.some(i => i.isCustom)
     
-    const message = `🔔 *NEW ORDER - Swaad Sutra*
+    const message = `🔔 *NEW ORDER - Swaad Sutra*${hasCustomItems ? ' ⭐HAS CUSTOM ITEMS' : ''}
 
 👤 Customer: ${order.customerName}
 🏠 Flat: ${order.flatNumber}
@@ -240,7 +272,7 @@ function MenuPage() {
 🛍️ *Items:*
 • ${itemsList}
 
-💰 *Total: ₹${order.totalAmount}*
+💰 *Total: ₹${order.totalAmount}*${hasCustomItems ? ' (may vary for custom items)' : ''}
 ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
 
 ⏰ ${new Date().toLocaleString('en-IN')}`
@@ -254,6 +286,17 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
       alert('Please enter your name and flat number')
       return
     }
+    
+    if (cartItems.length === 0 && customItems.length === 0) {
+      alert('Please add at least one item to your order')
+      return
+    }
+
+    // Combine cart items and custom items
+    const allItems = [
+      ...cartItems.map(({ name, qty, unit, price }) => ({ name, qty, unit, price })),
+      ...customItems.map(({ name, qty, price }) => ({ name, qty, price, isCustom: true }))
+    ]
 
     setSubmitting(true)
     try {
@@ -264,7 +307,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
           customerName: customerName.trim(),
           flatNumber: flatNumber.trim(),
           phone: phone.trim(),
-          items: cartItems.map(({ name, qty, unit, price }) => ({ name, qty, unit, price })),
+          items: allItems,
           totalAmount,
           collectDate,
           collectTime,
@@ -282,7 +325,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
         customerName: customerName.trim(),
         flatNumber: flatNumber.trim(),
         phone: phone.trim(),
-        items: cartItems.map(({ name, qty, unit, price }) => ({ name, qty, unit, price })),
+        items: allItems,
         totalAmount,
         collectDate,
         collectTime,
@@ -292,6 +335,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
       setOrderTime(new Date())
       setOrderSuccess(true)
       setCart({})
+      setCustomItems([])
       setShowCheckout(false)
       if (!user) {
         setCustomerName('')
@@ -481,10 +525,58 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
                   <span>₹{item.price * item.qty}</span>
                 </div>
               ))}
+              {customItems.map(item => (
+                <div key={item.id} className="summary-item custom-item">
+                  <span>
+                    ✨ {item.name} × {item.qty}
+                    <button className="remove-custom-btn" onClick={() => removeCustomItem(item.id)}>✕</button>
+                  </span>
+                  <span>{item.price > 0 ? `₹${item.price * item.qty}` : 'Price TBD'}</span>
+                </div>
+              ))}
               <div className="summary-total">
                 <strong>Total</strong>
-                <strong>₹{totalAmount}</strong>
+                <strong>₹{totalAmount}{customItems.some(i => !i.price) ? '+' : ''}</strong>
               </div>
+            </div>
+
+            {/* Add Custom Item Section */}
+            <div className="custom-item-section">
+              <label className="instructions-label">➕ Add Custom Item (not in menu)</label>
+              <div className="custom-item-form">
+                <input
+                  type="text"
+                  placeholder="Item name"
+                  value={newCustomItem.name}
+                  onChange={e => setNewCustomItem(prev => ({ ...prev, name: e.target.value }))}
+                  className="input custom-name-input"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Qty"
+                  value={newCustomItem.qty}
+                  onChange={e => setNewCustomItem(prev => ({ ...prev, qty: parseInt(e.target.value.replace(/\D/g, '')) || 1 }))}
+                  className="input custom-qty-input"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Price (optional)"
+                  value={newCustomItem.price}
+                  onChange={e => setNewCustomItem(prev => ({ ...prev, price: e.target.value.replace(/\D/g, '') }))}
+                  className="input custom-price-input"
+                />
+                <button 
+                  type="button" 
+                  className="btn btn-add-custom"
+                  onClick={addCustomItem}
+                  disabled={!newCustomItem.name.trim()}
+                >
+                  Add
+                </button>
+              </div>
+              <small className="custom-item-hint">Add items not listed in the menu. Leave price empty if unsure.</small>
             </div>
 
             <div className="checkout-form">
