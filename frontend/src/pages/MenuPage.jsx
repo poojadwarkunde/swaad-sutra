@@ -334,8 +334,24 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
   }
 
   const handlePlaceOrder = async () => {
-    if (!customerName.trim() || !flatNumber.trim()) {
-      alert('Please enter your name and flat number')
+    if (!customerName.trim()) {
+      alert('Please enter your name')
+      return
+    }
+    if (!flatNumber.trim()) {
+      alert('Please enter your flat number')
+      return
+    }
+    if (!phone.trim() || phone.length !== 10) {
+      alert('Please enter a valid 10-digit mobile number')
+      return
+    }
+    if (!collectDate) {
+      alert('Please select a collection date')
+      return
+    }
+    if (!collectTime) {
+      alert('Please select a collection time')
       return
     }
     
@@ -745,7 +761,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
               />
               <input
                 type="tel"
-                placeholder="Mobile Number (for WhatsApp updates)"
+                placeholder="Mobile Number (10 digits) *"
                 value={phone}
                 onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 className="input"
@@ -754,7 +770,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
               
               <div className="collect-datetime">
                 <label className="instructions-label">
-                  📅 When do you want to collect?
+                  📅 When do you want to collect? *
                 </label>
                 <div className="datetime-inputs">
                   <input
@@ -763,12 +779,14 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
                     onChange={e => setCollectDate(e.target.value)}
                     className="input date-input"
                     min={new Date().toISOString().split('T')[0]}
+                    required
                   />
                   <input
                     type="time"
                     value={collectTime}
                     onChange={e => setCollectTime(e.target.value)}
                     className="input time-input"
+                    required
                   />
                 </div>
               </div>
