@@ -77,6 +77,12 @@ function AdminPage() {
   const [newOrderCustomItems, setNewOrderCustomItems] = useState([])
   const [newOrderCustomItem, setNewOrderCustomItem] = useState({ name: '', qty: 1, price: '' })
   const [creatingOrder, setCreatingOrder] = useState(false)
+  
+  // Feedback screenshots state
+  const [feedbackScreenshots, setFeedbackScreenshots] = useState([])
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [newFeedback, setNewFeedback] = useState({ imageUrl: '', caption: '', customerName: '' })
+  const [savingFeedback, setSavingFeedback] = useState(false)
 
   const toggleSection = (section) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }))
@@ -222,10 +228,56 @@ function AdminPage() {
     }
   }
 
+  const fetchFeedbackScreenshots = async () => {
+    try {
+      const response = await fetch('/api/feedback-screenshots/all')
+      if (response.ok) {
+        const data = await response.json()
+        setFeedbackScreenshots(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch feedback screenshots:', err)
+    }
+  }
+
+  const handleAddFeedbackScreenshot = async () => {
+    if (!newFeedback.imageUrl.trim()) {
+      alert('Please enter an image URL')
+      return
+    }
+    setSavingFeedback(true)
+    try {
+      const response = await fetch('/api/feedback-screenshots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newFeedback)
+      })
+      if (response.ok) {
+        await fetchFeedbackScreenshots()
+        setNewFeedback({ imageUrl: '', caption: '', customerName: '' })
+        setShowFeedbackModal(false)
+      }
+    } catch (err) {
+      alert('Failed to add screenshot')
+    } finally {
+      setSavingFeedback(false)
+    }
+  }
+
+  const handleDeleteFeedbackScreenshot = async (id) => {
+    if (!confirm('Delete this feedback screenshot?')) return
+    try {
+      await fetch(`/api/feedback-screenshots/${id}`, { method: 'DELETE' })
+      await fetchFeedbackScreenshots()
+    } catch (err) {
+      alert('Failed to delete screenshot')
+    }
+  }
+
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      await Promise.all([fetchOrders(), fetchProducts()])
+      await Promise.all([fetchOrders(), fetchProducts(), fetchFeedbackScreenshots()])
     } finally {
       setRefreshing(false)
     }
@@ -234,6 +286,7 @@ function AdminPage() {
   useEffect(() => {
     fetchOrders()
     fetchProducts()
+    fetchFeedbackScreenshots()
     const ordersInterval = setInterval(fetchOrders, 30000)
     return () => {
       clearInterval(ordersInterval)
@@ -911,6 +964,12 @@ If you have questions, please contact us.`
         >
           🍳 Kitchen
         </button>
+        <button 
+          className={`tab-btn ${activeTab === 'feedback' ? 'active' : ''}`}
+          onClick={() => setActiveTab('feedback')}
+        >
+          ⭐ Feedback ({feedbackScreenshots.length})
+        </button>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
@@ -1247,6 +1306,105 @@ If you have questions, please contact us.`
             {orders.filter(o => o.status === 'NEW' || o.status === 'COOKING').map(renderOrderCard)}
           </div>
         </section>
+      )}
+
+      {/* Feedback Tab */}
+      {activeTab === 'feedback' && (
+        <section className="feedback-admin-section">
+          <div className="section-header-row">
+            <h2>⭐ Customer Feedback Screenshots</h2>
+            <button className="btn btn-primary" onClick={() => setShowFeedbackModal(true)}>
+              ➕ Add Screenshot
+            </button>
+          </div>
+          
+          {feedbackScreenshots.length === 0 ? (
+            <div className="no-orders">No feedback screenshots added yet</div>
+          ) : (
+            <div className="feedback-admin-grid">
+              {feedbackScreenshots.map(screenshot => (
+                <div key={screenshot._id} className="feedback-admin-card">
+                  <img src={screenshot.imageUrl} alt={screenshot.caption || 'Feedback'} />
+                  <div className="feedback-admin-info">
+                    {screenshot.customerName && <p className="customer-name">— {screenshot.customerName}</p>}
+                    {screenshot.caption && <p className="caption">{screenshot.caption}</p>}
+                    <div className="feedback-admin-actions">
+                      <button 
+                        className="btn btn-small btn-danger"
+                        onClick={() => handleDeleteFeedbackScreenshot(screenshot._id)}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Add Feedback Screenshot Modal */}
+      {showFeedbackModal && (
+        <div className="modal-overlay" onClick={() => setShowFeedbackModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>➕ Add Feedback Screenshot</h2>
+            <div className="form-group">
+              <label>Image URL *</label>
+              <input
+                type="text"
+                value={newFeedback.imageUrl}
+                onChange={e => setNewFeedback(prev => ({ ...prev, imageUrl: e.target.value }))}
+                placeholder="https://example.com/image.jpg"
+                className="form-input"
+              />
+              <small className="form-hint">Upload image to a service like Imgur, Google Drive, or Dropbox and paste the direct link</small>
+            </div>
+            <div className="form-group">
+              <label>Customer Name (optional)</label>
+              <input
+                type="text"
+                value={newFeedback.customerName}
+                onChange={e => setNewFeedback(prev => ({ ...prev, customerName: e.target.value }))}
+                placeholder="e.g., Priya S."
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label>Caption (optional)</label>
+              <input
+                type="text"
+                value={newFeedback.caption}
+                onChange={e => setNewFeedback(prev => ({ ...prev, caption: e.target.value }))}
+                placeholder="e.g., Amazing food!"
+                className="form-input"
+              />
+            </div>
+            {newFeedback.imageUrl && (
+              <div className="preview-section">
+                <label>Preview:</label>
+                <img 
+                  src={newFeedback.imageUrl} 
+                  alt="Preview" 
+                  style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
+                  onError={(e) => e.target.style.display = 'none'}
+                />
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setShowFeedbackModal(false)}>
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleAddFeedbackScreenshot}
+                disabled={savingFeedback}
+              >
+                {savingFeedback ? 'Adding...' : 'Add Screenshot'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cancel Modal */}

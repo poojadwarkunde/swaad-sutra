@@ -38,6 +38,10 @@ function MenuPage() {
   
   // Ratings state
   const [productRatings, setProductRatings] = useState({})
+  
+  // Feedback screenshots state
+  const [feedbackScreenshots, setFeedbackScreenshots] = useState([])
+  const [zoomFeedback, setZoomFeedback] = useState(null)
 
   // Fetch menu items from API
   const fetchMenuItems = async () => {
@@ -64,6 +68,19 @@ function MenuPage() {
       }
     } catch (err) {
       console.error('Failed to fetch ratings:', err)
+    }
+  }
+  
+  // Fetch feedback screenshots
+  const fetchFeedbackScreenshots = async () => {
+    try {
+      const response = await fetch('/api/feedback-screenshots')
+      if (response.ok) {
+        const data = await response.json()
+        setFeedbackScreenshots(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch feedback screenshots:', err)
     }
   }
   
@@ -125,6 +142,7 @@ function MenuPage() {
     }
     fetchMenuItems()
     fetchRatings()
+    fetchFeedbackScreenshots()
   }, [])
 
   // Authentication handlers
@@ -523,6 +541,45 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
           </div>
         )}
       </section>
+
+      {/* Customer Feedback Section */}
+      {feedbackScreenshots.length > 0 && (
+        <section className="feedback-section">
+          <h2>⭐ What Our Customers Say</h2>
+          <div className="feedback-gallery">
+            {feedbackScreenshots.map(screenshot => (
+              <div 
+                key={screenshot._id} 
+                className="feedback-card"
+                onClick={() => setZoomFeedback(screenshot)}
+              >
+                <img 
+                  src={screenshot.imageUrl} 
+                  alt={screenshot.caption || 'Customer feedback'}
+                  onError={(e) => {
+                    e.target.style.display = 'none'
+                  }}
+                />
+                {screenshot.customerName && (
+                  <div className="feedback-customer">— {screenshot.customerName}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Feedback Zoom Modal */}
+      {zoomFeedback && (
+        <div className="zoom-overlay" onClick={() => setZoomFeedback(null)}>
+          <div className="zoom-content feedback-zoom">
+            <button className="zoom-close" onClick={() => setZoomFeedback(null)}>×</button>
+            <img src={zoomFeedback.imageUrl} alt={zoomFeedback.caption || 'Customer feedback'} />
+            {zoomFeedback.caption && <p className="zoom-caption">{zoomFeedback.caption}</p>}
+            {zoomFeedback.customerName && <p className="zoom-customer">— {zoomFeedback.customerName}</p>}
+          </div>
+        </div>
+      )}
 
       {totalItems > 0 && !showCheckout && (
         <div className="cart-summary">

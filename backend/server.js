@@ -201,11 +201,21 @@ const ratingSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const feedbackScreenshotSchema = new mongoose.Schema({
+  imageUrl: { type: String, required: true },
+  caption: String,
+  customerName: String,
+  active: { type: Boolean, default: true },
+  order: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const Order = mongoose.model('Order', orderSchema);
 const Product = mongoose.model('Product', productSchema);
 const User = mongoose.model('User', userSchema);
 const Counter = mongoose.model('Counter', counterSchema);
 const Rating = mongoose.model('Rating', ratingSchema);
+const FeedbackScreenshot = mongoose.model('FeedbackScreenshot', feedbackScreenshotSchema);
 
 // Get next ID for a counter
 async function getNextId(counterName) {
@@ -1063,6 +1073,72 @@ app.get('/api/ratings/all', async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+});
+
+// =====================
+// FEEDBACK SCREENSHOTS
+// =====================
+
+// Get all active feedback screenshots (for menu page)
+app.get('/api/feedback-screenshots', async (req, res) => {
+  try {
+    const screenshots = await FeedbackScreenshot.find({ active: true }).sort({ order: 1, createdAt: -1 });
+    res.json(screenshots);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch screenshots' });
+  }
+});
+
+// Get all feedback screenshots (for admin)
+app.get('/api/feedback-screenshots/all', async (req, res) => {
+  try {
+    const screenshots = await FeedbackScreenshot.find().sort({ order: 1, createdAt: -1 });
+    res.json(screenshots);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch screenshots' });
+  }
+});
+
+// Add new feedback screenshot
+app.post('/api/feedback-screenshots', async (req, res) => {
+  try {
+    const { imageUrl, caption, customerName } = req.body;
+    const count = await FeedbackScreenshot.countDocuments();
+    const screenshot = new FeedbackScreenshot({
+      imageUrl,
+      caption,
+      customerName,
+      order: count
+    });
+    await screenshot.save();
+    res.json(screenshot);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add screenshot' });
+  }
+});
+
+// Update feedback screenshot
+app.put('/api/feedback-screenshots/:id', async (req, res) => {
+  try {
+    const screenshot = await FeedbackScreenshot.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    res.json(screenshot);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update screenshot' });
+  }
+});
+
+// Delete feedback screenshot
+app.delete('/api/feedback-screenshots/:id', async (req, res) => {
+  try {
+    await FeedbackScreenshot.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete screenshot' });
   }
 });
 
