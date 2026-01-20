@@ -688,6 +688,31 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+// Get single order by orderId (for rating page)
+app.get('/api/orders/:id', async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const order = await Order.findOne({ orderId: orderId });
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    res.json({
+      id: order.orderId,
+      orderId: order.orderId,
+      customerName: order.customerName,
+      phone: order.phone,
+      flatNumber: order.flatNumber,
+      items: order.items,
+      totalAmount: order.totalAmount,
+      status: order.status,
+      createdAt: order.createdAt
+    });
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({ error: 'Failed to fetch order' });
+  }
+});
+
 // Get order history for a customer by phone number
 app.get('/api/orders/history/:phone', async (req, res) => {
   try {
