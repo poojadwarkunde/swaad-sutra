@@ -3212,7 +3212,107 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* Reviews Section */
+/* Main Content Layout with Sidebar */
+.main-content-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* Reviews Sidebar */
+.reviews-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #fef9f3 0%, #fff7ed 100%);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.reviews-sidebar h3 {
+  color: var(--color-primary);
+  font-size: 1rem;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.reviews-sidebar-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-sidebar-card {
+  background: white;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.review-sidebar-card:hover {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-md);
+}
+
+.review-sidebar-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.review-sidebar-name {
+  display: block;
+  padding: 8px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-style: italic;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  text-align: center;
+}
+
+.no-reviews-sidebar {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  padding: 20px 0;
+}
+
+/* Menu Section takes remaining space */
+.main-content-layout .menu-section {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Mobile: Stack layout */
+@media (max-width: 768px) {
+  .main-content-layout {
+    flex-direction: column-reverse;
+  }
+  
+  .reviews-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+  
+  .reviews-sidebar-gallery {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  
+  .review-sidebar-card {
+    min-width: 140px;
+    flex-shrink: 0;
+  }
+}
+
+/* Old Reviews Section (keeping for compatibility) */
 .reviews-section {
   margin: 30px 0;
   padding: 24px 16px;
