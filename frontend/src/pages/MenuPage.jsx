@@ -67,11 +67,11 @@ function MenuPage() {
     }
   }
   
-  // Star display helper
+  // Star display helper - defaults to 5 stars if no ratings
   const renderStars = (rating, count) => {
-    if (!rating || count === 0) return null
-    const fullStars = Math.floor(rating)
-    const hasHalf = rating % 1 >= 0.5
+    const displayRating = rating && count > 0 ? rating : 5
+    const fullStars = Math.floor(displayRating)
+    const hasHalf = displayRating % 1 >= 0.5
     return (
       <div className="product-rating">
         <span className="stars">
@@ -79,7 +79,7 @@ function MenuPage() {
           {hasHalf && '½'}
           {'☆'.repeat(5 - fullStars - (hasHalf ? 1 : 0))}
         </span>
-        <span className="rating-count">({count})</span>
+        {count > 0 && <span className="rating-count">({count})</span>}
       </div>
     )
   }
@@ -493,7 +493,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
                   <div className="menu-info">
                     <span className="menu-name">{item.name}</span>
                     <span className="menu-price">₹{item.price}<span className="menu-unit">/{item.unit}</span></span>
-                    {productRatings[item.id] && renderStars(productRatings[item.id].avgRating, productRatings[item.id].count)}
+                    {renderStars(productRatings[item.id]?.avgRating, productRatings[item.id]?.count || 0)}
                   </div>
                 </div>
                 <div className="qty-controls">
