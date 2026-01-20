@@ -21,7 +21,7 @@ function AdminPage() {
   // Filter & Sort state
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [paymentFilter, setPaymentFilter] = useState('ALL')
-  const [sortBy, setSortBy] = useState('newest')
+  const [sortBy, setSortBy] = useState('collect-time')
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFilter, setDateFilter] = useState('')
   const [hideCompleted, setHideCompleted] = useState(true) // Hide completed orders by default
@@ -1129,7 +1129,11 @@ If you have questions, please contact us.`
         <section className="status-sections">
           {/* New Orders */}
           {(() => {
-            const newOrders = orders.filter(o => o.status === 'NEW').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            const newOrders = orders.filter(o => o.status === 'NEW').sort((a, b) => {
+              const aTime = a.collectDate ? new Date(`${a.collectDate}T${a.collectTime || '00:00'}`) : new Date(a.createdAt)
+              const bTime = b.collectDate ? new Date(`${b.collectDate}T${b.collectTime || '00:00'}`) : new Date(b.createdAt)
+              return aTime - bTime
+            })
             return newOrders.length > 0 && (
               <div className="status-section status-new">
                 <div className="section-header" onClick={() => toggleSection('new')}>
@@ -1149,7 +1153,11 @@ If you have questions, please contact us.`
 
           {/* In Progress (Cooking + Ready) */}
           {(() => {
-            const inProgressOrders = orders.filter(o => o.status === 'COOKING' || o.status === 'READY').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            const inProgressOrders = orders.filter(o => o.status === 'COOKING' || o.status === 'READY').sort((a, b) => {
+              const aTime = a.collectDate ? new Date(`${a.collectDate}T${a.collectTime || '00:00'}`) : new Date(a.createdAt)
+              const bTime = b.collectDate ? new Date(`${b.collectDate}T${b.collectTime || '00:00'}`) : new Date(b.createdAt)
+              return aTime - bTime
+            })
             return inProgressOrders.length > 0 && (
               <div className="status-section status-cooking">
                 <div className="section-header" onClick={() => toggleSection('inProgress')}>
@@ -1169,7 +1177,11 @@ If you have questions, please contact us.`
 
           {/* Delivered (Pending Payment) */}
           {(() => {
-            const deliveredPending = orders.filter(o => o.status === 'DELIVERED' && o.paymentStatus !== 'PAID').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            const deliveredPending = orders.filter(o => o.status === 'DELIVERED' && o.paymentStatus !== 'PAID').sort((a, b) => {
+              const aTime = a.collectDate ? new Date(`${a.collectDate}T${a.collectTime || '00:00'}`) : new Date(a.createdAt)
+              const bTime = b.collectDate ? new Date(`${b.collectDate}T${b.collectTime || '00:00'}`) : new Date(b.createdAt)
+              return aTime - bTime
+            })
             return deliveredPending.length > 0 && (
               <div className="status-section status-delivered">
                 <div className="section-header" onClick={() => toggleSection('delivered')}>
@@ -1189,7 +1201,11 @@ If you have questions, please contact us.`
 
           {/* Completed (Delivered + Paid) */}
           {(() => {
-            const completedOrders = orders.filter(o => o.status === 'DELIVERED' && o.paymentStatus === 'PAID').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            const completedOrders = orders.filter(o => o.status === 'DELIVERED' && o.paymentStatus === 'PAID').sort((a, b) => {
+              const aTime = a.collectDate ? new Date(`${a.collectDate}T${a.collectTime || '00:00'}`) : new Date(a.createdAt)
+              const bTime = b.collectDate ? new Date(`${b.collectDate}T${b.collectTime || '00:00'}`) : new Date(b.createdAt)
+              return bTime - aTime // Completed orders: newest first
+            })
             return completedOrders.length > 0 && (
               <div className="status-section status-completed">
                 <div className="section-header clickable" onClick={() => toggleSection('completed')}>
