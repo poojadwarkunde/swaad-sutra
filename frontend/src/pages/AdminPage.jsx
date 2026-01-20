@@ -600,7 +600,12 @@ Please collect your fresh homemade food. Thank you! 🙏`
 
 Please share screenshot once payment is done. 🙏
 
-We hope you enjoy your homemade meal. Thank you for ordering from Swaad Sutra! 🍽️`
+⭐ *We'd love your feedback!*
+If you enjoyed the food, please share your review in:
+• La Vida Ladies WhatsApp Group
+• La Vida Marketplace Channel
+
+Your support means a lot to us! 🍽️❤️`
       case 'CANCELLED':
         return `❌ *Swaad Sutra - Order Cancelled*
 
