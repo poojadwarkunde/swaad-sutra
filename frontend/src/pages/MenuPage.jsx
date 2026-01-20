@@ -584,11 +584,45 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
       {/* Feedback Zoom Modal */}
       {zoomFeedback && (
         <div className="zoom-overlay" onClick={() => setZoomFeedback(null)}>
-          <div className="zoom-content feedback-zoom">
+          <div className="zoom-content feedback-zoom" onClick={e => e.stopPropagation()}>
             <button className="zoom-close" onClick={() => setZoomFeedback(null)}>×</button>
+            
+            {/* Navigation Buttons */}
+            {feedbackScreenshots.length > 1 && (
+              <>
+                <button 
+                  className="zoom-nav zoom-prev"
+                  onClick={() => {
+                    const currentIndex = feedbackScreenshots.findIndex(f => f._id === zoomFeedback._id)
+                    const prevIndex = currentIndex === 0 ? feedbackScreenshots.length - 1 : currentIndex - 1
+                    setZoomFeedback(feedbackScreenshots[prevIndex])
+                  }}
+                >
+                  ‹
+                </button>
+                <button 
+                  className="zoom-nav zoom-next"
+                  onClick={() => {
+                    const currentIndex = feedbackScreenshots.findIndex(f => f._id === zoomFeedback._id)
+                    const nextIndex = currentIndex === feedbackScreenshots.length - 1 ? 0 : currentIndex + 1
+                    setZoomFeedback(feedbackScreenshots[nextIndex])
+                  }}
+                >
+                  ›
+                </button>
+              </>
+            )}
+            
             <img src={zoomFeedback.imageUrl} alt={zoomFeedback.caption || 'Customer feedback'} />
-            {zoomFeedback.caption && <p className="zoom-caption">{zoomFeedback.caption}</p>}
+            {zoomFeedback.caption && <p className="zoom-caption">"{zoomFeedback.caption}"</p>}
             {zoomFeedback.customerName && <p className="zoom-customer">— {zoomFeedback.customerName}</p>}
+            
+            {/* Counter */}
+            {feedbackScreenshots.length > 1 && (
+              <p className="zoom-counter">
+                {feedbackScreenshots.findIndex(f => f._id === zoomFeedback._id) + 1} / {feedbackScreenshots.length}
+              </p>
+            )}
           </div>
         </div>
       )}
