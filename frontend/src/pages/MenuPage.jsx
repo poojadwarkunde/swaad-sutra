@@ -4,6 +4,7 @@ function MenuPage() {
   const [menuItems, setMenuItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [cart, setCart] = useState({})
+  const [searchQuery, setSearchQuery] = useState('')
   const [showCheckout, setShowCheckout] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [flatNumber, setFlatNumber] = useState('')
@@ -254,6 +255,12 @@ function MenuPage() {
   const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0) + customItemsTotal
   const totalItems = cartItems.reduce((sum, item) => sum + item.qty, 0) + customItems.reduce((sum, item) => sum + item.qty, 0)
 
+  // Filter menu items based on search
+  const filteredMenuItems = menuItems.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
+
   // Custom item functions
   const addCustomItem = () => {
     if (!newCustomItem.name.trim()) return
@@ -274,6 +281,36 @@ function MenuPage() {
   const updateCustomItemQty = (id, qty) => {
     if (qty < 1) return removeCustomItem(id)
     setCustomItems(prev => prev.map(item => item.id === id ? { ...item, qty } : item))
+  }
+
+  // Reorder - add items from previous order to cart
+  const handleReorder = (order) => {
+    const newCart = { ...cart }
+    const newCustomItems = [...customItems]
+    
+    order.items.forEach(item => {
+      if (item.isCustom) {
+        // Add custom item
+        newCustomItems.push({
+          id: `custom-${Date.now()}-${Math.random()}`,
+          name: item.name,
+          qty: item.qty,
+          price: item.price || 0,
+          isCustom: true
+        })
+      } else {
+        // Find matching menu item and add to cart
+        const menuItem = menuItems.find(m => m.name === item.name)
+        if (menuItem) {
+          newCart[menuItem.id] = (newCart[menuItem.id] || 0) + item.qty
+        }
+      }
+    })
+    
+    setCart(newCart)
+    setCustomItems(newCustomItems)
+    setShowOrderHistory(false)
+    alert('Items added to cart! 🛒')
   }
 
   // Format phone for WhatsApp - accepts 10 digit Indian numbers
@@ -528,12 +565,27 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
 
         {/* Menu Section */}
         <section className="menu-section">
-          <h2>Today's Menu</h2>
-        {menuItems.length === 0 ? (
-          <div className="no-menu">No items available today. Please check back later!</div>
+          <div className="menu-header">
+            <h2>Today's Menu</h2>
+            <div className="search-bar">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="search-input"
+              />
+              {searchQuery && (
+                <button className="clear-search" onClick={() => setSearchQuery('')}>×</button>
+              )}
+            </div>
+          </div>
+        {filteredMenuItems.length === 0 ? (
+          <div className="no-menu">{searchQuery ? `No items found for "${searchQuery}"` : 'No items available today. Please check back later!'}</div>
         ) : (
           <div className="menu-grid">
-            {menuItems.map(item => (
+            {filteredMenuItems.map(item => (
               <div key={item.id} className="menu-card">
                 <div className="menu-card-left">
                   <div 
@@ -932,6 +984,15 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
                         <div className="history-cancel-reason">
                           Reason: {order.cancelReason}
                         </div>
+                      )}
+                      
+                      {order.status !== 'CANCELLED' && (
+                        <button 
+                          className="btn btn-reorder"
+                          onClick={() => handleReorder(order)}
+                        >
+                          🔄 Reorder
+                        </button>
                       )}
                     </div>
                   )
