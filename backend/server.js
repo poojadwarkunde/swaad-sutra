@@ -792,7 +792,7 @@ app.post('/api/orders', async (req, res) => {
 app.put('/api/orders/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, paymentStatus, cancelReason, cancelledAt, adminFeedback, feedbackAt } = req.body;
+    const { status, paymentStatus, cancelReason, cancelledAt, adminFeedback, feedbackAt, collectDate, collectTime } = req.body;
     
     // Get old order to check status change
     const oldOrder = await Order.findOne({ orderId: parseInt(id) });
@@ -805,6 +805,8 @@ app.put('/api/orders/:id', async (req, res) => {
     if (cancelledAt) updates.cancelledAt = cancelledAt;
     if (adminFeedback !== undefined) updates.adminFeedback = adminFeedback;
     if (feedbackAt) updates.feedbackAt = feedbackAt;
+    if (collectDate !== undefined) updates.collectDate = collectDate;
+    if (collectTime !== undefined) updates.collectTime = collectTime;
     
     const order = await Order.findOneAndUpdate(
       { orderId: parseInt(id) },

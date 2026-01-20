@@ -30,6 +30,11 @@ function AdminPage() {
   const [cancelModal, setCancelModal] = useState({ show: false, orderId: null })
   const [cancelReason, setCancelReason] = useState('')
   
+  // Edit collection time modal state
+  const [editCollectModal, setEditCollectModal] = useState({ show: false, order: null })
+  const [editCollectDate, setEditCollectDate] = useState('')
+  const [editCollectTime, setEditCollectTime] = useState('')
+  
   // Feedback modal state
   const [feedbackModal, setFeedbackModal] = useState({ show: false, orderId: null })
   const [feedbackText, setFeedbackText] = useState('')
@@ -367,6 +372,27 @@ function AdminPage() {
     if (updated) {
       setFeedbackModal({ show: false, orderId: null })
       setFeedbackText('')
+    }
+  }
+
+  // Edit collection time functions
+  const openEditCollectModal = (order) => {
+    setEditCollectDate(order.collectDate || '')
+    setEditCollectTime(order.collectTime || '')
+    setEditCollectModal({ show: true, order })
+  }
+
+  const handleSaveCollectTime = async () => {
+    if (!editCollectModal.order) return
+    
+    const updated = await updateOrder(editCollectModal.order.id, { 
+      collectDate: editCollectDate,
+      collectTime: editCollectTime
+    })
+    if (updated) {
+      setEditCollectModal({ show: false, order: null })
+      setEditCollectDate('')
+      setEditCollectTime('')
     }
   }
 
@@ -883,11 +909,25 @@ ${itemsList || 'No items sold today'}
         ))}
       </div>
 
-      {(order.collectDate || order.collectTime) && (
+      {(order.collectDate || order.collectTime) ? (
         <div className="order-collect-time">
           📅 Collect: {order.collectDate && new Date(order.collectDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
           {order.collectTime && ` at ${order.collectTime}`}
+          <button 
+            className="btn-edit-collect"
+            onClick={() => openEditCollectModal(order)}
+            title="Edit collection time"
+          >
+            ✏️
+          </button>
         </div>
+      ) : (
+        <button 
+          className="btn-add-collect"
+          onClick={() => openEditCollectModal(order)}
+        >
+          📅 Add Collection Time
+        </button>
       )}
 
       {order.notes && <div className="order-notes">📝 {order.notes}</div>}
@@ -1549,6 +1589,47 @@ ${itemsList || 'No items sold today'}
               </button>
               <button className="btn btn-primary" onClick={handleAddFeedback}>
                 Save Feedback
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Collection Time Modal */}
+      {editCollectModal.show && editCollectModal.order && (
+        <div className="modal-overlay" onClick={() => setEditCollectModal({ show: false, order: null })}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>📅 Edit Collection Time</h2>
+            <p>Update collection date and time for <strong>#{editCollectModal.order.id}</strong> - {editCollectModal.order.customerName}</p>
+            
+            <div className="collect-edit-form">
+              <div className="form-group">
+                <label>Collection Date</label>
+                <input
+                  type="date"
+                  value={editCollectDate}
+                  onChange={e => setEditCollectDate(e.target.value)}
+                  className="form-input"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              <div className="form-group">
+                <label>Collection Time</label>
+                <input
+                  type="time"
+                  value={editCollectTime}
+                  onChange={e => setEditCollectTime(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setEditCollectModal({ show: false, order: null })}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveCollectTime}>
+                Save Changes
               </button>
             </div>
           </div>
