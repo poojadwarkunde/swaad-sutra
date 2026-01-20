@@ -3186,3 +3186,125 @@ body {
   font-size: 13px;
   color: var(--color-text-muted);
 }
+
+/* File Upload Styles */
+.upload-area {
+  margin-top: 8px;
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-btn {
+  display: inline-block;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: white;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.upload-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Reviews Section */
+.reviews-section {
+  margin: 30px 0;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, #fef9f3 0%, #fff7ed 100%);
+  border-radius: var(--radius-lg);
+}
+
+.reviews-section h2 {
+  text-align: center;
+  color: var(--color-primary);
+  margin-bottom: 24px;
+  font-size: 1.5rem;
+}
+
+.reviews-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.review-card {
+  background: white;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.review-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+}
+
+.review-image-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.review-image-container img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.review-card:hover .review-image-container img {
+  transform: scale(1.05);
+}
+
+.zoom-hint {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.review-card:hover .zoom-hint {
+  opacity: 1;
+}
+
+.review-info {
+  padding: 12px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+}
+
+.review-customer {
+  font-style: italic;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.review-caption {
+  font-size: 12px;
+  color: var(--color-text);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-muted);
+}
+
+.no-reviews p {
+  font-size: 16px;
+}

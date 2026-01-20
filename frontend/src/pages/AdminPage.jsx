@@ -83,6 +83,7 @@ function AdminPage() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [newFeedback, setNewFeedback] = useState({ imageUrl: '', caption: '', customerName: '' })
   const [savingFeedback, setSavingFeedback] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const toggleSection = (section) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }))
@@ -240,9 +241,36 @@ function AdminPage() {
     }
   }
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB')
+      return
+    }
+    
+    setUploadingImage(true)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setNewFeedback(prev => ({ ...prev, imageUrl: reader.result }))
+      setUploadingImage(false)
+    }
+    reader.onerror = () => {
+      alert('Failed to read image')
+      setUploadingImage(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleAddFeedbackScreenshot = async () => {
-    if (!newFeedback.imageUrl.trim()) {
-      alert('Please enter an image URL')
+    if (!newFeedback.imageUrl) {
+      alert('Please upload an image')
       return
     }
     setSavingFeedback(true)
@@ -1350,16 +1378,38 @@ If you have questions, please contact us.`
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>➕ Add Feedback Screenshot</h2>
             <div className="form-group">
-              <label>Image URL *</label>
-              <input
-                type="text"
-                value={newFeedback.imageUrl}
-                onChange={e => setNewFeedback(prev => ({ ...prev, imageUrl: e.target.value }))}
-                placeholder="https://example.com/image.jpg"
-                className="form-input"
-              />
-              <small className="form-hint">Upload image to a service like Imgur, Google Drive, or Dropbox and paste the direct link</small>
+              <label>Upload Image *</label>
+              <div className="upload-area">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  id="feedback-image-upload"
+                  className="file-input"
+                />
+                <label htmlFor="feedback-image-upload" className="upload-btn">
+                  {uploadingImage ? '📤 Uploading...' : '📷 Choose Image'}
+                </label>
+              </div>
+              <small className="form-hint">Max file size: 5MB. Supported: JPG, PNG, GIF</small>
             </div>
+            {newFeedback.imageUrl && (
+              <div className="preview-section">
+                <label>Preview:</label>
+                <img 
+                  src={newFeedback.imageUrl} 
+                  alt="Preview" 
+                  style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
+                />
+                <button 
+                  className="btn btn-small btn-danger" 
+                  onClick={() => setNewFeedback(prev => ({ ...prev, imageUrl: '' }))}
+                  style={{ marginTop: '8px' }}
+                >
+                  🗑️ Remove
+                </button>
+              </div>
+            )}
             <div className="form-group">
               <label>Customer Name (optional)</label>
               <input
@@ -1380,17 +1430,6 @@ If you have questions, please contact us.`
                 className="form-input"
               />
             </div>
-            {newFeedback.imageUrl && (
-              <div className="preview-section">
-                <label>Preview:</label>
-                <img 
-                  src={newFeedback.imageUrl} 
-                  alt="Preview" 
-                  style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
-                  onError={(e) => e.target.style.display = 'none'}
-                />
-              </div>
-            )}
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowFeedbackModal(false)}>
                 Cancel
@@ -1398,7 +1437,7 @@ If you have questions, please contact us.`
               <button 
                 className="btn btn-primary" 
                 onClick={handleAddFeedbackScreenshot}
-                disabled={savingFeedback}
+                disabled={savingFeedback || uploadingImage || !newFeedback.imageUrl}
               >
                 {savingFeedback ? 'Adding...' : 'Add Screenshot'}
               </button>

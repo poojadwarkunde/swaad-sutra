@@ -542,32 +542,44 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
         )}
       </section>
 
-      {/* Customer Feedback Section */}
-      {feedbackScreenshots.length > 0 && (
-        <section className="feedback-section">
-          <h2>⭐ What Our Customers Say</h2>
-          <div className="feedback-gallery">
+      {/* Customer Reviews Section */}
+      <section className="reviews-section">
+        <h2>⭐ Customer Reviews</h2>
+        {feedbackScreenshots.length > 0 ? (
+          <div className="reviews-gallery">
             {feedbackScreenshots.map(screenshot => (
               <div 
                 key={screenshot._id} 
-                className="feedback-card"
+                className="review-card"
                 onClick={() => setZoomFeedback(screenshot)}
               >
-                <img 
-                  src={screenshot.imageUrl} 
-                  alt={screenshot.caption || 'Customer feedback'}
-                  onError={(e) => {
-                    e.target.style.display = 'none'
-                  }}
-                />
-                {screenshot.customerName && (
-                  <div className="feedback-customer">— {screenshot.customerName}</div>
-                )}
+                <div className="review-image-container">
+                  <img 
+                    src={screenshot.imageUrl} 
+                    alt={screenshot.caption || 'Customer feedback'}
+                    onError={(e) => {
+                      e.target.style.display = 'none'
+                    }}
+                  />
+                  <span className="zoom-hint">Tap to view</span>
+                </div>
+                <div className="review-info">
+                  {screenshot.customerName && (
+                    <div className="review-customer">— {screenshot.customerName}</div>
+                  )}
+                  {screenshot.caption && (
+                    <div className="review-caption">"{screenshot.caption}"</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="no-reviews">
+            <p>🌟 Be the first to share your experience!</p>
+          </div>
+        )}
+      </section>
 
       {/* Feedback Zoom Modal */}
       {zoomFeedback && (
