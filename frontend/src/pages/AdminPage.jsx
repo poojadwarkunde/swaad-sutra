@@ -593,7 +593,14 @@ Please collect your fresh homemade food. Thank you! 🙏`
 
 ✅ Your order has been delivered!
 
-We hope you enjoy your homemade meal. Thank you for ordering from Swaad Sutra! 🍽️🙏`
+💰 *Total Amount: ₹${order.totalAmount}*
+
+📱 *Payment via PhonePe UPI:*
+9096648553-3@ibl
+
+Please share screenshot once payment is done. 🙏
+
+We hope you enjoy your homemade meal. Thank you for ordering from Swaad Sutra! 🍽️`
       case 'CANCELLED':
         return `❌ *Swaad Sutra - Order Cancelled*
 
