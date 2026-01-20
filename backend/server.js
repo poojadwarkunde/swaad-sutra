@@ -190,10 +190,22 @@ const counterSchema = new mongoose.Schema({
   value: Number
 });
 
+const ratingSchema = new mongoose.Schema({
+  orderId: { type: Number, required: true },
+  productId: { type: Number, required: true },
+  productName: String,
+  customerName: String,
+  phone: String,
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  review: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
 const Order = mongoose.model('Order', orderSchema);
 const Product = mongoose.model('Product', productSchema);
 const User = mongoose.model('User', userSchema);
 const Counter = mongoose.model('Counter', counterSchema);
+const Rating = mongoose.model('Rating', ratingSchema);
 
 // Get next ID for a counter
 async function getNextId(counterName) {
@@ -961,10 +973,99 @@ app.get('/api/export/list', (req, res) => {
 });
 
 // =====================
-// WHATSAPP ENDPOINTS
+// RATING ENDPOINTS
 // =====================
 
-// Get WhatsApp status
+// Submit rating for an order
+app.post('/api/ratings', async (req, res) => {
+  try {
+    const { orderId, ratings, customerName, phone } = req.body;
+    
+    // ratings is an array of { productId, productName, rating, review }
+    const savedRatings = [];
+    for (const r of ratings) {
+      const rating = new Rating({
+        orderId,
+        productId: r.productId,
+        productName: r.productName,
+        customerName,
+        phone,
+        rating: r.rating,
+        review: r.review || ''
+      });
+      await rating.save();
+      savedRatings.push(rating);
+    }
+    
+    res.json({ success: true, ratings: savedRatings });
+  } catch (error) {
+    console.error('Error saving ratings:', error);
+    res.status(500).json({ error: 'Failed to save ratings' });
+  }
+});
+
+// Get ratings for a specific order
+app.get('/api/ratings/order/:orderId', async (req, res) => {
+  try {
+    const ratings = await Rating.find({ orderId: parseInt(req.params.orderId) });
+    res.json(ratings);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+});
+
+// Get average rating for a product
+app.get('/api/ratings/product/:productId', async (req, res) => {
+  try {
+    const ratings = await Rating.find({ productId: parseInt(req.params.productId) });
+    if (ratings.length === 0) {
+      return res.json({ avgRating: 0, count: 0 });
+    }
+    const avg = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+    res.json({ avgRating: Math.round(avg * 10) / 10, count: ratings.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+});
+
+// Get all product ratings (for displaying on menu)
+app.get('/api/ratings/all', async (req, res) => {
+  try {
+    const ratings = await Rating.find();
+    // Group by productId and calculate averages
+    const productRatings = {};
+    for (const r of ratings) {
+      if (!productRatings[r.productId]) {
+        productRatings[r.productId] = { sum: 0, count: 0, reviews: [] };
+      }
+      productRatings[r.productId].sum += r.rating;
+      productRatings[r.productId].count++;
+      if (r.review) {
+        productRatings[r.productId].reviews.push({
+          rating: r.rating,
+          review: r.review,
+          customerName: r.customerName,
+          createdAt: r.createdAt
+        });
+      }
+    }
+    
+    // Convert to final format
+    const result = {};
+    for (const [productId, data] of Object.entries(productRatings)) {
+      result[productId] = {
+        avgRating: Math.round((data.sum / data.count) * 10) / 10,
+        count: data.count,
+        reviews: data.reviews.slice(-5) // Last 5 reviews
+      };
+    }
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 

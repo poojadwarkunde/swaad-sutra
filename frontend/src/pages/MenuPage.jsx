@@ -35,6 +35,9 @@ function MenuPage() {
   // Custom items state
   const [customItems, setCustomItems] = useState([])
   const [newCustomItem, setNewCustomItem] = useState({ name: '', qty: 1, price: '' })
+  
+  // Ratings state
+  const [productRatings, setProductRatings] = useState({})
 
   // Fetch menu items from API
   const fetchMenuItems = async () => {
@@ -49,6 +52,36 @@ function MenuPage() {
     } finally {
       setLoading(false)
     }
+  }
+  
+  // Fetch product ratings
+  const fetchRatings = async () => {
+    try {
+      const response = await fetch('/api/ratings/all')
+      if (response.ok) {
+        const data = await response.json()
+        setProductRatings(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch ratings:', err)
+    }
+  }
+  
+  // Star display helper
+  const renderStars = (rating, count) => {
+    if (!rating || count === 0) return null
+    const fullStars = Math.floor(rating)
+    const hasHalf = rating % 1 >= 0.5
+    return (
+      <div className="product-rating">
+        <span className="stars">
+          {'★'.repeat(fullStars)}
+          {hasHalf && '½'}
+          {'☆'.repeat(5 - fullStars - (hasHalf ? 1 : 0))}
+        </span>
+        <span className="rating-count">({count})</span>
+      </div>
+    )
   }
 
   // Fetch order history for logged in user
@@ -91,6 +124,7 @@ function MenuPage() {
       setPhone(userData.mobile || '')
     }
     fetchMenuItems()
+    fetchRatings()
   }, [])
 
   // Authentication handlers
@@ -459,6 +493,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
                   <div className="menu-info">
                     <span className="menu-name">{item.name}</span>
                     <span className="menu-price">₹{item.price}<span className="menu-unit">/{item.unit}</span></span>
+                    {productRatings[item.id] && renderStars(productRatings[item.id].avgRating, productRatings[item.id].count)}
                   </div>
                 </div>
                 <div className="qty-controls">

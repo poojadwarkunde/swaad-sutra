@@ -600,7 +600,9 @@ Please collect your fresh homemade food. Thank you! 🙏`
 
 Please share screenshot once payment is done. 🙏
 
-⭐ *We'd love your feedback!*
+⭐ *Rate your order:*
+${window.location.origin}/rate/${order.id}
+
 If you enjoyed the food, please share your review in:
 • La Vida Ladies WhatsApp Group
 • La Vida Marketplace Channel

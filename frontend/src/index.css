@@ -2794,3 +2794,241 @@ body {
   max-width: 80px;
   flex: 0 0 auto;
 }
+
+/* =====================
+   PRODUCT RATINGS
+   ===================== */
+.product-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.product-rating .stars {
+  color: #f39c12;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.product-rating .rating-count {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* =====================
+   RATE PAGE
+   ===================== */
+.rate-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px 16px;
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.rate-header {
+  text-align: center;
+  padding: 20px 0 30px;
+}
+
+.rate-header h1 {
+  font-size: 28px;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+
+.rate-header p {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.rate-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.rate-item-card {
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.rate-item-card .item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rate-item-card .item-emoji {
+  font-size: 24px;
+}
+
+.rate-item-card .item-name {
+  flex: 1;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.rate-item-card .item-qty {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.rating-section {
+  margin-bottom: 12px;
+}
+
+.rating-section label {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.star-input {
+  display: flex;
+  gap: 8px;
+}
+
+.star-input .star {
+  font-size: 32px;
+  cursor: pointer;
+  color: #ddd;
+  transition: transform 0.2s, color 0.2s;
+}
+
+.star-input .star:hover {
+  transform: scale(1.2);
+}
+
+.star-input .star.filled {
+  color: #f39c12;
+}
+
+.review-section textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  resize: none;
+}
+
+.review-section textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.rate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 0;
+}
+
+.rate-actions .btn-submit {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.rate-actions .btn-submit:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.rate-actions .btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rate-actions .btn-skip {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  padding: 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.rate-actions .btn-skip:hover {
+  color: var(--color-text);
+}
+
+/* Success/Error/Loading states */
+.rate-page .loading,
+.rate-page .error-message,
+.rate-page .success-message,
+.rate-page .already-rated {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.rate-page .success-message h2,
+.rate-page .already-rated h2 {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.rate-page .success-message p,
+.rate-page .already-rated p {
+  color: var(--color-text-muted);
+  margin-bottom: 12px;
+}
+
+.rate-page .feedback-reminder {
+  background: var(--color-warning-light);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  margin: 20px 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.rate-page .btn-primary {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+.existing-ratings {
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.existing-rating-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.existing-rating-item:last-child {
+  border-bottom: none;
+}
+
+.existing-rating-item .stars {
+  color: #f39c12;
+}
