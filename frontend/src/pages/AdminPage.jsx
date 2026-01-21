@@ -89,6 +89,10 @@ function AdminPage() {
   const [newFeedback, setNewFeedback] = useState({ imageUrl: '', caption: '', customerName: '' })
   const [savingFeedback, setSavingFeedback] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  
+  // Admin ratings state
+  const [adminRatings, setAdminRatings] = useState({ summary: {}, productStats: [], ratings: [] })
+  const [loadingRatings, setLoadingRatings] = useState(false)
 
   const toggleSection = (section) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }))
@@ -246,6 +250,21 @@ function AdminPage() {
     }
   }
 
+  const fetchAdminRatings = async () => {
+    setLoadingRatings(true)
+    try {
+      const response = await fetch('/api/admin/ratings')
+      if (response.ok) {
+        const data = await response.json()
+        setAdminRatings(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch admin ratings:', err)
+    } finally {
+      setLoadingRatings(false)
+    }
+  }
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -320,6 +339,7 @@ function AdminPage() {
     fetchOrders()
     fetchProducts()
     fetchFeedbackScreenshots()
+    fetchAdminRatings()
     const ordersInterval = setInterval(fetchOrders, 30000)
     return () => {
       clearInterval(ordersInterval)
@@ -1078,6 +1098,12 @@ ${itemsList || 'No items sold today'}
         >
           ⭐ Feedback ({feedbackScreenshots.length})
         </button>
+        <button 
+          className={`tab-btn ${activeTab === 'ratings' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('ratings'); fetchAdminRatings(); }}
+        >
+          📊 Ratings ({adminRatings.summary?.totalRatings || 0})
+        </button>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
@@ -1467,6 +1493,98 @@ ${itemsList || 'No items sold today'}
                 </div>
               ))}
             </div>
+          )}
+        </section>
+      )}
+
+      {/* Ratings Tab */}
+      {activeTab === 'ratings' && (
+        <section className="ratings-admin-section">
+          <div className="section-header-row">
+            <h2>📊 Customer Ratings & Reviews</h2>
+            <button className="btn btn-secondary" onClick={fetchAdminRatings} disabled={loadingRatings}>
+              {loadingRatings ? '🔄 Loading...' : '🔄 Refresh'}
+            </button>
+          </div>
+          
+          {loadingRatings ? (
+            <div className="loading">Loading ratings...</div>
+          ) : (
+            <>
+              {/* Summary Cards */}
+              <div className="ratings-summary-grid">
+                <div className="summary-card ratings-card">
+                  <span className="summary-value">{adminRatings.summary?.totalRatings || 0}</span>
+                  <span className="summary-label">Total Ratings</span>
+                </div>
+                <div className="summary-card ratings-card">
+                  <span className="summary-value">{adminRatings.summary?.avgRating || 0} ⭐</span>
+                  <span className="summary-label">Average Rating</span>
+                </div>
+                <div className="summary-card ratings-card">
+                  <span className="summary-value">{adminRatings.summary?.withReviews || 0}</span>
+                  <span className="summary-label">With Written Reviews</span>
+                </div>
+                <div className="summary-card ratings-card">
+                  <span className="summary-value">{adminRatings.summary?.uniqueProducts || 0}</span>
+                  <span className="summary-label">Products Rated</span>
+                </div>
+              </div>
+
+              {/* Product Stats */}
+              {adminRatings.productStats?.length > 0 && (
+                <div className="product-ratings-section">
+                  <h3>📈 Ratings by Product</h3>
+                  <div className="product-ratings-table">
+                    <div className="table-header">
+                      <span>Product</span>
+                      <span>Rating</span>
+                      <span>Count</span>
+                    </div>
+                    {adminRatings.productStats.map((p, idx) => (
+                      <div key={idx} className="table-row">
+                        <span className="product-name">{p.productName}</span>
+                        <span className="product-rating">
+                          {'★'.repeat(Math.round(p.avgRating))}{'☆'.repeat(5 - Math.round(p.avgRating))}
+                          <small>({p.avgRating})</small>
+                        </span>
+                        <span className="product-count">{p.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* All Reviews */}
+              {adminRatings.ratings?.length > 0 && (
+                <div className="all-reviews-section">
+                  <h3>💬 All Ratings ({adminRatings.ratings.length})</h3>
+                  <div className="reviews-list">
+                    {adminRatings.ratings.map((r, idx) => (
+                      <div key={idx} className="review-item">
+                        <div className="review-item-header">
+                          <span className="review-product">{r.productName}</span>
+                          <span className="review-stars">
+                            {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                          </span>
+                        </div>
+                        {r.review && <p className="review-text">"{r.review}"</p>}
+                        <div className="review-meta">
+                          <span>👤 {r.customerName || 'Anonymous'}</span>
+                          <span>📞 {r.phone || 'N/A'}</span>
+                          <span>🛒 Order #{r.orderId}</span>
+                          <span>📅 {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {adminRatings.ratings?.length === 0 && (
+                <div className="no-orders">No ratings submitted yet. Share the rating link with customers after delivery!</div>
+              )}
+            </>
           )}
         </section>
       )}

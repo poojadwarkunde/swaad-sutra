@@ -1126,6 +1126,59 @@ app.get('/api/reviews', async (req, res) => {
   }
 });
 
+// Admin: Get ALL ratings with full details
+app.get('/api/admin/ratings', async (req, res) => {
+  try {
+    const ratings = await Rating.find().sort({ createdAt: -1 });
+    
+    // Summary stats
+    const totalRatings = ratings.length;
+    const avgRating = totalRatings > 0 
+      ? Math.round((ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings) * 10) / 10 
+      : 0;
+    const withReviews = ratings.filter(r => r.review && r.review.trim()).length;
+    
+    // Group by product
+    const byProduct = {};
+    ratings.forEach(r => {
+      if (!byProduct[r.productName]) {
+        byProduct[r.productName] = { count: 0, sum: 0 };
+      }
+      byProduct[r.productName].count++;
+      byProduct[r.productName].sum += r.rating;
+    });
+    
+    const productStats = Object.entries(byProduct).map(([name, data]) => ({
+      productName: name,
+      count: data.count,
+      avgRating: Math.round((data.sum / data.count) * 10) / 10
+    })).sort((a, b) => b.count - a.count);
+    
+    res.json({
+      summary: {
+        totalRatings,
+        avgRating,
+        withReviews,
+        uniqueProducts: Object.keys(byProduct).length
+      },
+      productStats,
+      ratings: ratings.map(r => ({
+        id: r._id,
+        orderId: r.orderId,
+        productName: r.productName,
+        rating: r.rating,
+        review: r.review || '',
+        customerName: r.customerName,
+        phone: r.phone,
+        createdAt: r.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching admin ratings:', error);
+    res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+});
+
 // =====================
 // FEEDBACK SCREENSHOTS
 // =====================
