@@ -3460,6 +3460,31 @@ body {
   text-align: center;
 }
 
+/* Reviews Summary */
+.reviews-summary {
+  background: linear-gradient(135deg, #d35400, #e67e22);
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(211, 84, 0, 0.25);
+}
+
+.reviews-summary .summary-count {
+  display: block;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.reviews-summary .summary-label {
+  font-size: 12px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
 /* Written Reviews Section */
 .written-reviews-section {
   margin-bottom: 20px;

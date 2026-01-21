@@ -557,10 +557,21 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
         <aside className="reviews-sidebar">
           <h3>⭐ Customer Reviews</h3>
           
+          {/* Reviews Summary */}
+          {(() => {
+            const totalRatings = Object.values(productRatings).reduce((sum, p) => sum + (p.count || 0), 0)
+            return totalRatings > 0 ? (
+              <div className="reviews-summary">
+                <span className="summary-count">{totalRatings}</span>
+                <span className="summary-label">happy customers rated our food</span>
+              </div>
+            ) : null
+          })()}
+          
           {/* Written Reviews */}
           {writtenReviews.length > 0 && (
             <div className="written-reviews-section">
-              <h4>💬 What Our Customers Say</h4>
+              <h4>💬 What Our Customers Say ({writtenReviews.length})</h4>
               <div className="written-reviews-list">
                 {writtenReviews.map(review => (
                   <div key={review.id} className="written-review-card">
@@ -586,7 +597,7 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
           {/* Screenshot Reviews */}
           {feedbackScreenshots.length > 0 && (
             <div className="screenshot-reviews-section">
-              <h4>📸 Customer Screenshots</h4>
+              <h4>📸 Customer Screenshots ({feedbackScreenshots.length})</h4>
               <div className="reviews-sidebar-gallery">
                 {feedbackScreenshots.map(screenshot => (
                   <div 
