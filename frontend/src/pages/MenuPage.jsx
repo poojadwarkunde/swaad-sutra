@@ -43,6 +43,9 @@ function MenuPage() {
   // Feedback screenshots state
   const [feedbackScreenshots, setFeedbackScreenshots] = useState([])
   const [zoomFeedback, setZoomFeedback] = useState(null)
+  
+  // Written reviews state
+  const [writtenReviews, setWrittenReviews] = useState([])
 
   // Fetch menu items from API
   const fetchMenuItems = async () => {
@@ -82,6 +85,19 @@ function MenuPage() {
       }
     } catch (err) {
       console.error('Failed to fetch feedback screenshots:', err)
+    }
+  }
+  
+  // Fetch written reviews
+  const fetchWrittenReviews = async () => {
+    try {
+      const response = await fetch('/api/reviews')
+      if (response.ok) {
+        const data = await response.json()
+        setWrittenReviews(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch written reviews:', err)
     }
   }
   
@@ -144,6 +160,7 @@ function MenuPage() {
     fetchMenuItems()
     fetchRatings()
     fetchFeedbackScreenshots()
+    fetchWrittenReviews()
   }, [])
 
   // Authentication handlers
@@ -539,26 +556,59 @@ ${order.notes ? `\n📝 Notes: ${order.notes}` : ''}
         {/* Reviews Section - Top Right */}
         <aside className="reviews-sidebar">
           <h3>⭐ Customer Reviews</h3>
-          {feedbackScreenshots.length > 0 ? (
-            <div className="reviews-sidebar-gallery">
-              {feedbackScreenshots.map(screenshot => (
-                <div 
-                  key={screenshot._id} 
-                  className="review-sidebar-card"
-                  onClick={() => setZoomFeedback(screenshot)}
-                >
-                  <img 
-                    src={screenshot.imageUrl} 
-                    alt={screenshot.caption || 'Customer feedback'}
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
-                  {screenshot.customerName && (
-                    <span className="review-sidebar-name">— {screenshot.customerName}</span>
-                  )}
-                </div>
-              ))}
+          
+          {/* Written Reviews */}
+          {writtenReviews.length > 0 && (
+            <div className="written-reviews-section">
+              <h4>💬 What Our Customers Say</h4>
+              <div className="written-reviews-list">
+                {writtenReviews.map(review => (
+                  <div key={review.id} className="written-review-card">
+                    <div className="review-header">
+                      <span className="review-product">{review.productName}</span>
+                      <span className="review-stars">
+                        {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                      </span>
+                    </div>
+                    <p className="review-text">"{review.review}"</p>
+                    <div className="review-footer">
+                      <span className="review-author">— {review.customerName || 'Happy Customer'}</span>
+                      <span className="review-date">
+                        {new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : (
+          )}
+          
+          {/* Screenshot Reviews */}
+          {feedbackScreenshots.length > 0 && (
+            <div className="screenshot-reviews-section">
+              <h4>📸 Customer Screenshots</h4>
+              <div className="reviews-sidebar-gallery">
+                {feedbackScreenshots.map(screenshot => (
+                  <div 
+                    key={screenshot._id} 
+                    className="review-sidebar-card"
+                    onClick={() => setZoomFeedback(screenshot)}
+                  >
+                    <img 
+                      src={screenshot.imageUrl} 
+                      alt={screenshot.caption || 'Customer feedback'}
+                      onError={(e) => { e.target.style.display = 'none' }}
+                    />
+                    {screenshot.customerName && (
+                      <span className="review-sidebar-name">— {screenshot.customerName}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {writtenReviews.length === 0 && feedbackScreenshots.length === 0 && (
             <p className="no-reviews-sidebar">🌟 Reviews coming soon!</p>
           )}
         </aside>

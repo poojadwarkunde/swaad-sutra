@@ -1104,6 +1104,28 @@ app.get('/api/ratings/all', async (req, res) => {
   }
 });
 
+// Get all written reviews (for displaying on menu page)
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const ratings = await Rating.find({ review: { $exists: true, $ne: '' } })
+      .sort({ createdAt: -1 })
+      .limit(20);
+    
+    const reviews = ratings.map(r => ({
+      id: r._id,
+      productName: r.productName,
+      rating: r.rating,
+      review: r.review,
+      customerName: r.customerName,
+      createdAt: r.createdAt
+    }));
+    
+    res.json(reviews);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
+});
+
 // =====================
 // FEEDBACK SCREENSHOTS
 // =====================

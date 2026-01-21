@@ -3460,6 +3460,108 @@ body {
   text-align: center;
 }
 
+/* Written Reviews Section */
+.written-reviews-section {
+  margin-bottom: 20px;
+}
+
+.written-reviews-section h4,
+.screenshot-reviews-section h4 {
+  font-size: 14px;
+  color: #8b5a2b;
+  margin-bottom: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.written-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.written-reviews-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.written-reviews-list::-webkit-scrollbar-thumb {
+  background: #d35400;
+  border-radius: 4px;
+}
+
+.written-review-card {
+  background: white;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(211, 84, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.written-review-card:hover {
+  box-shadow: 0 4px 16px rgba(211, 84, 0, 0.12);
+  border-color: rgba(211, 84, 0, 0.2);
+}
+
+.written-review-card .review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.written-review-card .review-product {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.written-review-card .review-stars {
+  color: #f59e0b;
+  font-size: 12px;
+  letter-spacing: -1px;
+}
+
+.written-review-card .review-text {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+  margin: 0 0 10px 0;
+  font-style: italic;
+  word-break: break-word;
+}
+
+.written-review-card .review-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.written-review-card .review-author {
+  color: #8b5a2b;
+  font-weight: 600;
+}
+
+.written-review-card .review-date {
+  color: #9ca3af;
+}
+
+.screenshot-reviews-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(211, 84, 0, 0.2);
+}
+
 .no-reviews-sidebar {
   text-align: center;
   font-size: 14px;
@@ -3503,6 +3605,23 @@ body {
   
   .review-sidebar-card img {
     height: 120px;
+  }
+  
+  .written-reviews-list {
+    flex-direction: row;
+    overflow-x: auto;
+    max-height: none;
+    padding-bottom: 8px;
+  }
+  
+  .written-review-card {
+    min-width: 220px;
+    flex-shrink: 0;
+  }
+  
+  .screenshot-reviews-section {
+    margin-top: 16px;
+    padding-top: 12px;
   }
 }
 
